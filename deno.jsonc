@@ -1,0 +1,10 @@
+{
+    "tasks": {
+        "dev": "deno run --unstable -A --watch mod.ts",
+        "start": "deno run --unstable --allow-net --allow-read --allow-env mod.ts"
+    },
+    "fmt": {
+        "lineWidth": 120,
+        "indentWidth": 4
+    }
+}
