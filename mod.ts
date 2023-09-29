@@ -75,8 +75,8 @@ Deno.serve(serveOptions, async (req) => {
                 headers: commonHeaders,
             });
         }
-    } else if (url.pathname === "/ping" && method === "GET") {
-        return new Response("Pong!", {
+    } else if (url.pathname === "/" && method === "GET") {
+        return new Response("This server is part of the WebTrace self-hosted analytics platform. https://github.com/Pinta365/WebTrace", {
             status: 200,
             headers: commonHeaders,
         });
