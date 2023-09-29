@@ -20,6 +20,8 @@ const serveOptions = mode === "production"
         key: Deno.readTextFileSync("./keys/key.pem"),
     };
 
+console.log("debug >>", "loggermode:", loggerMode, "mode:", mode, "baseURL:", baseURL, "allowedProjects:", allowedProjects)
+
 Deno.serve(serveOptions, async (req) => {
     const commonHeaders = {
         "Access-Control-Allow-Origin": "*",
