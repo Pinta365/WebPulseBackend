@@ -75,6 +75,11 @@ Deno.serve(serveOptions, async (req) => {
                 headers: commonHeaders,
             });
         }
+    } else if (url.pathname === "/ping" && method === "GET") {
+        return new Response("Pong!", {
+            status: 200,
+            headers: commonHeaders,
+        });
     }
 
     return new Response(null, { status: 404 });
