@@ -20,7 +20,6 @@ async function insertEvent(payload: LoggerData["payload"]) {
 export class denokvLogger implements Logger {
     async log(data: LoggerData): Promise<void> {
         const {payload} = data;
-        console.log(payload.type);
         await insertEvent(payload);
     }
 }

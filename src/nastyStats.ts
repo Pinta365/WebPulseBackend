@@ -1,7 +1,7 @@
 /**
  * Just a quick 'n dirty test to extract some stats data.
  */
-const database = await Deno.openKv();
+const database = await Deno.openKv(Deno.env.get("DENO_KV_LOCAL_DATABASE") || undefined);
 
 async function countEvents(entries) {
     let pageLoads = 0;

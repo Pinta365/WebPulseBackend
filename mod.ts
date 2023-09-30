@@ -1,29 +1,15 @@
 import "https://deno.land/std@0.203.0/dotenv/load.ts";
 import { initTracking } from "./src/client.js";
 import { logData } from "./src/logger_manager.ts";
+import { config } from "./src/config.ts"
 import { getNastyStats } from "./src/nastyStats.ts"
 
 // Configuration 
-const loggerMode = Deno.env.get("LOGGER_MODE");
-const mode = Deno.env.get("MODE") || "production";
-const port = Number(Deno.env.get("PORT")) || 8000;
-const baseURL = Deno.env.get("BACKEND_URL") || "https://localhost:"+port;
-const allowedProjects = JSON.parse(Deno.env.get("ALLOWED_PROJECTS") || "[]");
-const serveOptions = mode === "production"
-    ? {
-        // production
-        port: port,
-    }
-    : {
-        // development
-        port: port,
-        cert: Deno.readTextFileSync("./keys/cert.pem"),
-        key: Deno.readTextFileSync("./keys/key.pem"),
-    };
 
-console.log("debug >>", "loggermode:", loggerMode, "mode:", mode, "baseURL:", baseURL, "allowedProjects:", allowedProjects)
 
-Deno.serve(serveOptions, async (req) => {
+console.log("debug >>", "loggermode:", config.loggerMode, "mode:", config.mode, "baseURL:", config.baseURL, "allowedProjects:", config.allowedProjects)
+
+Deno.serve(config.serveOptions, async (req) => {
     const commonHeaders = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST",
@@ -38,12 +24,12 @@ Deno.serve(serveOptions, async (req) => {
     if (url.pathname === "/client.js" && method === "GET") {
         const trackId = qs.get("trackId") || "";
 
-        if (trackId && allowedProjects.includes(trackId)) {
+        if (trackId && config.allowedProjects.includes(trackId)) {
             const [realmId, projectId] = trackId.split(".");
 
             const body = `
                 ${initTracking.toString()}
-                initTracking("${realmId}", "${projectId}", "${baseURL}");
+                initTracking("${realmId}", "${projectId}", "${config.baseURL}");
             `;
             return new Response(body, {
                 status: 200,
@@ -64,9 +50,9 @@ Deno.serve(serveOptions, async (req) => {
 
         if (
             data?.payload?.realmId && data?.payload?.projectId &&
-            allowedProjects.includes(`${data.payload.realmId}.${data.payload.projectId}`)
+            config.allowedProjects.includes(`${data.payload.realmId}.${data.payload.projectId}`)
         ) {
-            logData(data, loggerMode);
+            logData(data, config.loggerMode);
 
             return new Response(body, {
                 status: 200,
