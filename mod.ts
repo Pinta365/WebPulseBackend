@@ -1,6 +1,7 @@
 import "https://deno.land/std@0.203.0/dotenv/load.ts";
 import { initTracking } from "./src/client.js";
 import { logData } from "./src/logger_manager.ts";
+import { getNastyStats } from "./src/nastyStats.ts"
 
 // Configuration 
 const loggerMode = Deno.env.get("LOGGER_MODE");
@@ -82,7 +83,15 @@ Deno.serve(serveOptions, async (req) => {
             status: 200,
             headers: commonHeaders,
         });
+    } else if (url.pathname === "/stats" && method === "GET") {
+        const stats  = await getNastyStats();
+        return new Response(stats, {
+            status: 200,
+            headers: commonHeaders,
+        });
     }
+
+    
 
     return new Response(null, { status: 404 });
 });
