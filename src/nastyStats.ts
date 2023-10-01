@@ -25,7 +25,7 @@ async function countEvents(entries) {
     return [pageLoads, pageClicks, pageScrolls];
 }
 
-export async function getNastyStats() {
+export async function nastyStats() {
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const startOfYesterday = new Date(startOfToday - 24 * 60 * 60 * 1000);
@@ -33,17 +33,19 @@ export async function getNastyStats() {
 
     const yesterdayEntries = database.list({
         start: [startOfYesterday.getTime()],
-        end: [endOfYesterday.getTime()]
+        end: [endOfYesterday.getTime()],
     });
-    const yesterdaysEvents = await countEvents(yesterdayEntries);  
+    const yesterdaysEvents = await countEvents(yesterdayEntries);
 
     const todayEntries = database.list({
         start: [startOfToday.getTime()],
-        end: [Number.MAX_SAFE_INTEGER]
+        end: [Number.MAX_SAFE_INTEGER],
     });
     const todaysEvents = await countEvents(todayEntries);
 
-    const stats = `YESTERDAY: Page Loads: ${yesterdaysEvents[0]}, Page Clicks: ${yesterdaysEvents[1]}, Page Scrolls: ${yesterdaysEvents[2]}
+    const stats = `YESTERDAY: Page Loads: ${yesterdaysEvents[0]}, Page Clicks: ${yesterdaysEvents[1]}, Page Scrolls: ${
+        yesterdaysEvents[2]
+    }
     TODAY: Page Loads: ${todaysEvents[0]}, Page Clicks: ${todaysEvents[1]}, Page Scrolls: ${todaysEvents[2]}`;
     return stats;
 }

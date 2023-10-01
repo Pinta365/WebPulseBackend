@@ -14,12 +14,17 @@ const serveOptions = mode === "production"
         cert: Deno.readTextFileSync("./keys/cert.pem"),
         key: Deno.readTextFileSync("./keys/key.pem"),
     };
-
+const commonHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST",
+    "Access-Control-Allow-Headers": "Content-Type",
+};
 export const config = {
     loggerMode,
     mode,
     port,
     baseURL,
     allowedProjects,
-    serveOptions
-}
+    serveOptions,
+    commonHeaders,
+};

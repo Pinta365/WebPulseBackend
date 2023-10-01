@@ -1,3 +1,7 @@
+/**
+ * JavaScript file that gets sent to the client.
+ */
+
 export function initTracking(realmId, projectId, reportBackURL) {
     // Handle sending the events back to the backend.
     function reportBack(data) {
