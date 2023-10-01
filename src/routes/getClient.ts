@@ -9,7 +9,7 @@ export function getClient(trackId: string) {
             ${initTracking.toString()}
             initTracking("${realmId}", "${projectId}", "${config.baseURL}");
         `;
-        console.log(config.commonHeaders);
+        
         return new Response(body, {
             status: 200,
             headers: {
