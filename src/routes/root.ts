@@ -8,7 +8,7 @@ export function root() {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Centered Div</title>
+        <title>WebTrace: Web Analytics with Deno</title>
         <style>
             .container {
                 display: flex;

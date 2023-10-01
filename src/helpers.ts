@@ -17,8 +17,7 @@ export function minifyJS(input: string): string {
 
     // Remove newline and whitespace
     output = output.replace(/\s+/g, ' ');
-
-    console.log(output)
+    
     return output.trim();
 }
 

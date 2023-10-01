@@ -32,7 +32,6 @@ Deno.serve(serveOptions, async (req) => {
             }
             
             if (url.pathname === "/client.js") {
-                console.log("Origin:", origin);
                 const trackId = url.searchParams.get("trackId") || "";
                 return routes.getClient(trackId);
             } else if (url.pathname === "/track") {
