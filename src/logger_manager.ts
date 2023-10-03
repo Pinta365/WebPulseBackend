@@ -1,5 +1,6 @@
 import { ConsoleLogger } from "./loggers/console_logger.ts";
 import { denokvLogger } from "./loggers/denokv_logger.ts";
+import { mongodbLogger } from "./loggers/mongodb_logger.ts";
 
 export interface LoggerData {
     type: string;
@@ -16,6 +17,7 @@ export interface Logger {
 const loggers: Record<string, Logger> = {
     console: new ConsoleLogger(),
     denokv: new denokvLogger(),
+    mongodb: new mongodbLogger(),
 };
 
 /**
