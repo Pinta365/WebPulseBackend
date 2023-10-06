@@ -1,4 +1,4 @@
-# WebTrace: Web Analytics with Deno
+# WebPulse: Web Analytics with Deno
 
 Host on your own server or Deno Deploy.
 
