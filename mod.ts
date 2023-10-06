@@ -4,24 +4,25 @@ import { routes } from "./src/routes/routes.ts";
 import { isOriginAllowed } from "./src/helpers.ts";
 
 // Temporary debugging log.
-console.log("debug >>",config);
+console.log("debug >>", config);
 
 // Serve as HTTPS?
-const serveOptions = config.serveHttps ? {
-    // Deno.serve with https
-    port: config.serverPort,
-    cert: Deno.readTextFileSync("./keys/cert.pem"),
-    key: Deno.readTextFileSync("./keys/key.pem"),
-}
-: {
-    // Deno.serve with http
-    port: config.serverPort,
-}
+const serveOptions = config.serveHttps
+    ? {
+        // Deno.serve with https
+        port: config.serverPort,
+        cert: Deno.readTextFileSync("./keys/cert.pem"),
+        key: Deno.readTextFileSync("./keys/key.pem"),
+    }
+    : {
+        // Deno.serve with http
+        port: config.serverPort,
+    };
 
 Deno.serve(serveOptions, async (req) => {
     const method = req.method;
     const url = new URL(req.url);
-    const origin = req.headers.get("Origin");
+    const origin = req.headers.get("Origin") || "";
 
     try {
         // We want added security for these routes, origin whitelist for now.
@@ -30,13 +31,13 @@ Deno.serve(serveOptions, async (req) => {
             if (config.serverMode === "production" && !isOriginAllowed(origin)) {
                 return new Response("Forbidden", { status: 403 });
             }
-            
+
             if (url.pathname === "/client.js") {
-                const trackId = url.searchParams.get("trackId") || "";
-                return routes.getClient(trackId);
+                const projectid = url.searchParams.get("projectid") || "";
+                return routes.getClient(projectid, origin);
             } else if (url.pathname === "/track") {
                 const body = await req.text();
-                return routes.track(body);
+                return routes.track(body, origin);
             }
         } else if (url.pathname === "/" && method === "GET") {
             return routes.root();
@@ -53,4 +54,3 @@ Deno.serve(serveOptions, async (req) => {
     // Add a default response at the end to ensure all paths return a Response.
     return new Response("Not Found", { status: 404 });
 });
-

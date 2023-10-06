@@ -1,13 +1,13 @@
 import { logData } from "../logger_manager.ts";
+import { getProjectSettings } from "../project_settings.ts";
 import { config } from "../config.ts";
 
-export function track(body: string) {
+export function track(body: string, origin: string) {
     const data = JSON.parse(body);
 
-    if (
-        data?.payload?.realmId && data?.payload?.projectId &&
-        config.allowedProjects.includes(`${data.payload.realmId}.${data.payload.projectId}`)
-    ) {
+    const projectSettings = getProjectSettings(data?.payload?.projectId, origin);
+
+    if (projectSettings && projectSettings.realm.id && projectSettings.project.id) {
         logData(data, config.loggerMode);
 
         return new Response(body, {

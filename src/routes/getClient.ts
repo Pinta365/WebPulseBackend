@@ -1,17 +1,12 @@
-import { initTracking } from "../client.js";
+import { generateScript } from "../generate_client.ts";
 import { config } from "../config.ts";
 import { minifyJS } from "../helpers.ts";
 
-export function getClient(trackId: string) {
-    if (trackId && config.allowedProjects.includes(trackId)) {
-        const [realmId, projectId] = trackId.split(".");
+export function getClient(projectId: string, origin: string) {
+    const body = generateScript(projectId, origin);
 
-        const body = `
-        ${minifyJS(initTracking.toString())}
-            initTracking("${realmId}", "${projectId}", "${config.trackerURL}");
-        `;
-        
-        return new Response(body, {
+    if (body) {
+        return new Response(minifyJS(body), {
             status: 200,
             headers: {
                 "content-type": "application/javascript",

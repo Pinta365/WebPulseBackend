@@ -19,7 +19,6 @@ export const config = {
     trackerURL: trackerURL || "https://localhost:8000",
     allowedProjects: JSON.parse(allowedProjects || "[]"),
     allowedOrigins: JSON.parse(allowedOrigins || "[]"),
-    serveHttps: serveHttpsString?.toLowerCase() === "true"?true:false,
+    serveHttps: serveHttpsString?.toLowerCase() === "true" ? true : false,
     commonHeaders,
-
 };
