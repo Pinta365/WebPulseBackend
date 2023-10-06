@@ -41,8 +41,6 @@ Deno.serve(serveOptions, async (req) => {
             }
         } else if (url.pathname === "/" && method === "GET") {
             return routes.root();
-        } else if (url.pathname === "/stats" && method === "GET") {
-            return routes.getNastyStats();
         } else {
             return new Response("Not Found", { status: 404 });
         }
