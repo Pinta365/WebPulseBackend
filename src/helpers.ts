@@ -1,8 +1,14 @@
-import { config } from "./config.ts";
 
-export function isOriginAllowed(origin: string | null): boolean {
-    if (!origin) return false;
-    return config.allowedOrigins.includes(origin);
+import { UserAgent } from "../deps.ts";
+
+export function getUserAgent(req: Request) {
+    const userAgent = new UserAgent(req.headers.get("user-agent") ?? "");
+    return userAgent;
+}
+
+export function getOrigin(req: Request) {
+    const origin = req.headers.get("Origin") || "";
+    return origin;
 }
 
 export function minifyJS(input: string): string {

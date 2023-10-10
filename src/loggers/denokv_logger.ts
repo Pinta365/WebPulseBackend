@@ -9,7 +9,7 @@ async function insertEvent(payload: LoggerData["payload"]) {
             database = await Deno.openKv(Deno.env.get("DENO_KV_LOCAL_DATABASE") || undefined);
         }
 
-        await database.set([payload.timestamp, payload.realmId, payload.projectId, payload.type], payload);
+        await database.set([payload.projectId, payload.timestamp], payload);
         // More indexes..
     } catch (error) {
         console.error("Error writing event", error);
@@ -19,6 +19,7 @@ async function insertEvent(payload: LoggerData["payload"]) {
 export class denokvLogger implements Logger {
     async log(data: LoggerData): Promise<void> {
         const { payload } = data;
+        console.log(payload);
         await insertEvent(payload);
     }
 }

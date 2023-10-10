@@ -1,9 +1,13 @@
 import { logData } from "../logger_manager.ts";
+import { getUserAgent, getOrigin } from "../helpers.ts";
 import { getProjectSettings } from "../project_settings.ts";
 import { config } from "../config.ts";
 
-export function track(body: string, origin: string) {
+export function track(body: string, req: Request) {
+    const origin = getOrigin(req);
+    const userAgent = getUserAgent(req);
     const data = JSON.parse(body);
+    data.payload.userAgent = userAgent.toJSON();
 
     const projectSettings = getProjectSettings(data?.payload?.projectId, origin);
 

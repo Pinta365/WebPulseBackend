@@ -1,8 +1,9 @@
 import { generateScript } from "../generate_client.ts";
 import { config } from "../config.ts";
-import { minifyJS } from "../helpers.ts";
+import { minifyJS, getOrigin } from "../helpers.ts";
 
-export function getClient(projectId: string, origin: string) {
+export function getClient(projectId: string, req: Request) {
+    const origin = getOrigin(req);
     const body = generateScript(projectId, origin);
 
     if (body) {
