@@ -5,7 +5,7 @@ async function countEvents(entries) {
     let pageLoads = 0;
     let pageClicks = 0;
     let pageScrolls = 0;
-    let uniqueDeviceIds = new Set();
+    const uniqueDeviceIds = new Set();
 
     for await (const entry of entries) {
         const event = entry.value;

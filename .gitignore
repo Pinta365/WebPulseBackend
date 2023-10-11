@@ -3,4 +3,4 @@ deno.lock
 keys/*
 database/*
 client_test/*
-stats.ts
+dev/*

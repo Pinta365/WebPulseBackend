@@ -10,7 +10,6 @@ export class mongodbLogger implements Logger {
     async log(data: LoggerData): Promise<void> {
         const { payload } = data;
         await insertEvent(payload);
-        console.log("Received Data:", JSON.stringify(data, null, 2));
     }
 }
 
