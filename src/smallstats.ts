@@ -53,9 +53,9 @@ export async function smallStats(project) {
 
 
     const stats = `${project.name}
-    YESTERDAY: Page Loads: ${yesterdaysEvents.pageLoads}, Page Clicks: ${yesterdaysEvents.pageClicks}, Page Scrolls: ${yesterdaysEvents.pageScrolls}, Unique visitors: ${yesterdaysEvents.uniqueDevices}
-    TODAY: Page Loads: ${todaysEvents.pageLoads}, Page Clicks: ${todaysEvents.pageClicks}, Page Scrolls: ${todaysEvents.pageScrolls}, Unique visitors: ${todaysEvents.uniqueDevices}
-    LAST 30 MINUTES: Page Loads: ${last30MinEvents.pageLoads}, Page Clicks: ${last30MinEvents.pageClicks}, Page Scrolls: ${last30MinEvents.pageScrolls}, Unique visitors: ${last30MinEvents.uniqueDevices}`;
+    YESTERDAY:\t\tLoads: ${yesterdaysEvents.pageLoads}\tClicks: ${yesterdaysEvents.pageClicks}\tScrolls: ${yesterdaysEvents.pageScrolls}\t Unique visitors: ${yesterdaysEvents.uniqueDevices}
+    TODAY:\t\tLoads: ${todaysEvents.pageLoads}\tClicks: ${todaysEvents.pageClicks}\tScrolls: ${todaysEvents.pageScrolls}\t Unique visitors: ${todaysEvents.uniqueDevices}
+    30 MINUTES:\t\tLoads: ${last30MinEvents.pageLoads}\tClicks: ${last30MinEvents.pageClicks}\tScrolls: ${last30MinEvents.pageScrolls}\t Unique visitors: ${last30MinEvents.uniqueDevices}\n`;
     return stats;
     
 }

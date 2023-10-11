@@ -46,7 +46,7 @@ const mockData: ProjectSettings[] = [
             enabled: true,
         },
         pageScrolls: {
-            enabled: false,
+            enabled: true,
         },
     },
     {
@@ -58,6 +58,50 @@ const mockData: ProjectSettings[] = [
         project: {
             id: "01HCD7RJCJ55YYYX0471FYPXNE",
             name: "Lumocs",
+            description: "",
+            allowedOrigins: [],
+        },
+        pageLoads: {
+            enabled: true,
+        },
+        pageClicks: {
+            enabled: true,
+        },
+        pageScrolls: {
+            enabled: true,
+        },
+    },
+    {
+        realm: {
+            id: "01HCD7QZBWY7SBJPVAN03ZJ31S",
+            name: "56k.guru",
+            description: "",
+        },
+        project: {
+            id: "01HCF6YRCKJTXZAFNRMY2W179G",
+            name: "Spot",
+            description: "",
+            allowedOrigins: [],
+        },
+        pageLoads: {
+            enabled: true,
+        },
+        pageClicks: {
+            enabled: true,
+        },
+        pageScrolls: {
+            enabled: true,
+        },
+    },
+    {
+        realm: {
+            id: "01HCD7QZBWY7SBJPVAN03ZJ31S",
+            name: "56k.guru",
+            description: "",
+        },
+        project: {
+            id: "01HCF709JQFEDX6VYFS77PYFMR",
+            name: "Hexagon",
             description: "",
             allowedOrigins: [],
         },
