@@ -1,4 +1,4 @@
-import { Logger, LoggerData } from "../logger_manager.ts";
+import { Logger, LoggerData } from "./logger.ts";
 let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
 
 // Should parse and type the data better than "LoggerData["payload"]"

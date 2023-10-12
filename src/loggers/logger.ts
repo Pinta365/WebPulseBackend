@@ -1,6 +1,5 @@
-import { ConsoleLogger } from "./loggers/console_logger.ts";
-import { denokvLogger } from "./loggers/denokv_logger.ts";
-import { mongodbLogger } from "./loggers/mongodb_logger.ts";
+import { ConsoleLogger } from "./console_logger.ts";
+import { denokvLogger } from "./denokv_logger.ts";
 
 export interface LoggerData {
     type: string;
@@ -17,7 +16,6 @@ export interface Logger {
 const loggers: Record<string, Logger> = {
     console: new ConsoleLogger(),
     denokv: new denokvLogger(),
-    mongodb: new mongodbLogger(),
 };
 
 /**
@@ -42,6 +40,7 @@ export async function logData(
 ): Promise<void> {
     const logger = loggers[mode];
     if (logger) {
+        console.log(data);
         await logger.log(data);
     } else {
         console.warn(`Logger named "${mode}" not found. Data not logged.`);

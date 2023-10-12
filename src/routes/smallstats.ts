@@ -1,12 +1,12 @@
-import { smallStats } from "../smallstats.ts";
-import { getProjects } from "../project_settings.ts";
+import { smallStats } from "../get_smallstats.ts";
+import { getProjects } from "../db.ts";
 import { config } from "../config.ts";
 
 export async function getSmallStats() {
     let stats = "";
     const projects = getProjects();
     for await (const proj of projects) {
-        stats += await smallStats(proj) + "\n";
+        stats += await smallStats(proj.project) + "\n";
     }
 
     //const stats = await smallStats();

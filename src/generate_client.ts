@@ -1,16 +1,18 @@
 /**
  * Generate JavaScript that gets sent to the client.
  */
-import { getProjectSettings } from "./project_settings.ts";
+import { getProjectSettings, ProjectConfiguration } from "./db.ts";
+import { genULID } from "./helpers.ts";
 import { config } from "./config.ts";
 
 export function generateScript(projectId: string, origin: string): string | false {
-    const projectSettings = getProjectSettings(projectId, origin);
+    const { realm, project, options } = getProjectSettings(projectId, origin) as ProjectConfiguration;
 
-    if (!projectSettings) {
+    if (!project) {
         return false;
     }
 
+    const loadId = genULID();
     const startBlock = `
     /* genscript v2 */
     function initTracking(realmId, projectId, reportBackURL) {
@@ -30,17 +32,18 @@ export function generateScript(projectId: string, origin: string): string | fals
             });
         }
 
+        const loadId = "${loadId}";
         const deviceId = localStorage.getItem("deviceId") || generateUUID();
         localStorage.setItem("deviceId", deviceId);
 
         const sessionId = sessionStorage.getItem("sessionId") || generateUUID();
         sessionStorage.setItem("sessionId", sessionId);
     `;
-    const endBlock = "} initTracking('" + projectSettings.realm.id + "', '" + projectSettings.project.id + "', '" +
+    const endBlock = "} initTracking('" + realm.id + "', '" + project.id + "', '" +
         config.trackerURL + "');";
     let optionalBlock = "";
 
-    if (projectSettings.pageLoads.enabled) {
+    if (options.pageLoads.enabled) {
         optionalBlock += `reportBack({
             type: "pageLoad",
             payload: {
@@ -57,7 +60,7 @@ export function generateScript(projectId: string, origin: string): string | fals
         });`;
     }
 
-    if (projectSettings.pageClicks.enabled) {
+    if (options.pageClicks.enabled) {
         optionalBlock += `document.addEventListener("click", function (e) {
             const payload = {
                 type: "pageClick",
@@ -78,7 +81,7 @@ export function generateScript(projectId: string, origin: string): string | fals
         }, { passive: true });`;
     }
 
-    if (projectSettings.pageScrolls.enabled) {
+    if (options.pageScrolls.enabled) {
         optionalBlock += `const trackedPercentages = [25, 50, 75, 100];
         const alreadyTracked = [];
     

@@ -32,7 +32,7 @@ Deno.serve(serveOptions, async (req) => {
             return routes.track(body, req);
         } else if (url.pathname === "/" && method === "GET") {
             return routes.root();
-        }else if (url.pathname === "/smallstats" && method === "GET") {
+        } else if (url.pathname === "/smallstats" && method === "GET") {
             return routes.getSmallStats();
         } else {
             return new Response("Not Found", { status: 404 });
@@ -42,4 +42,3 @@ Deno.serve(serveOptions, async (req) => {
         return new Response("Internal Server Error", { status: 500 });
     }
 });
-

@@ -1,6 +1,5 @@
-import { logData } from "../logger_manager.ts";
-import { getUserAgent, getOrigin } from "../helpers.ts";
-import { getProjectSettings } from "../project_settings.ts";
+import { getProjectSettings, logData, ProjectConfiguration } from "../db.ts";
+import { getOrigin, getUserAgent } from "../helpers.ts";
 import { config } from "../config.ts";
 
 export function track(body: string, req: Request) {
@@ -9,9 +8,9 @@ export function track(body: string, req: Request) {
     const data = JSON.parse(body);
     data.payload.userAgent = userAgent.toJSON();
 
-    const projectSettings = getProjectSettings(data?.payload?.projectId, origin);
+    const { realm, project } = getProjectSettings(data?.payload?.projectId, origin) as ProjectConfiguration;
 
-    if (projectSettings && projectSettings.realm.id && projectSettings.project.id) {
+    if (project && realm && realm.id && project.id) {
         logData(data, config.loggerMode);
 
         return new Response(body, {

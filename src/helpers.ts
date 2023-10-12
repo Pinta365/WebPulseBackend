@@ -1,5 +1,12 @@
+import { decodeTime, ulid, UserAgent } from "../deps.ts";
 
-import { UserAgent } from "../deps.ts";
+export function genULID(seedTime: number = Date.now()): string {
+    return ulid(seedTime);
+}
+
+export function extractTimeFromULID(id: string): number {
+    return decodeTime(id);
+}
 
 export function getUserAgent(req: Request) {
     const userAgent = new UserAgent(req.headers.get("user-agent") ?? "");

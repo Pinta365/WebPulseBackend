@@ -1,4 +1,4 @@
-import { Logger, LoggerData } from "../logger_manager.ts";
+import { Logger, LoggerData } from "./logger.ts";
 
 export class ConsoleLogger implements Logger {
     log(data: LoggerData): void {

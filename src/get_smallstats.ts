@@ -1,4 +1,4 @@
-
+import { Project } from "./db.ts";
 const database = await Deno.openKv(Deno.env.get("DENO_KV_LOCAL_DATABASE") || undefined);
 
 async function countEvents(entries) {
@@ -12,7 +12,7 @@ async function countEvents(entries) {
         switch (event.type) {
             case "pageLoad":
                 pageLoads++;
-                uniqueDeviceIds.add(event.deviceId); 
+                uniqueDeviceIds.add(event.deviceId);
                 break;
             case "pageClick":
                 pageClicks++;
@@ -22,10 +22,10 @@ async function countEvents(entries) {
                 break;
         }
     }
-    return {pageLoads, pageClicks, pageScrolls,  uniqueDevices: uniqueDeviceIds.size};
+    return { pageLoads, pageClicks, pageScrolls, uniqueDevices: uniqueDeviceIds.size };
 }
 
-export async function smallStats(project) {
+export async function smallStats(project: Project) {
     const now = new Date();
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
     const today = new Date();
@@ -51,11 +51,9 @@ export async function smallStats(project) {
     });
     const last30MinEvents = await countEvents(last30MinEntries);
 
-
     const stats = `${project.name}
     YESTERDAY:\t\tLoads: ${yesterdaysEvents.pageLoads}\tClicks: ${yesterdaysEvents.pageClicks}\tScrolls: ${yesterdaysEvents.pageScrolls}\t Unique visitors: ${yesterdaysEvents.uniqueDevices}
     TODAY:\t\tLoads: ${todaysEvents.pageLoads}\tClicks: ${todaysEvents.pageClicks}\tScrolls: ${todaysEvents.pageScrolls}\t Unique visitors: ${todaysEvents.uniqueDevices}
     30 MINUTES:\t\tLoads: ${last30MinEvents.pageLoads}\tClicks: ${last30MinEvents.pageClicks}\tScrolls: ${last30MinEvents.pageScrolls}\t Unique visitors: ${last30MinEvents.uniqueDevices}\n`;
     return stats;
-    
 }
