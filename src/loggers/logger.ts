@@ -40,7 +40,6 @@ export async function logData(
 ): Promise<void> {
     const logger = loggers[mode];
     if (logger) {
-        console.log(data);
         await logger.log(data);
     } else {
         console.warn(`Logger named "${mode}" not found. Data not logged.`);
