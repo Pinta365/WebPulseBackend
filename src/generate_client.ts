@@ -1,12 +1,12 @@
 /**
  * Generate JavaScript that gets sent to the client.
  */
-import { getProjectSettings, ProjectConfiguration } from "./db.ts";
+import { getProjectConfiguration, ProjectConfiguration } from "./db.ts";
 import { genULID } from "./helpers.ts";
 import { config } from "./config.ts";
 
-export function generateScript(projectId: string, origin: string): string | false {
-    const { realm, project, options } = getProjectSettings(projectId, origin) as ProjectConfiguration;
+export async function generateScript(projectId: string, origin: string): Promise<string | false> {
+    const { realm, project } = await getProjectConfiguration(projectId, origin) as ProjectConfiguration;
 
     if (!project) {
         return false;
@@ -43,7 +43,7 @@ export function generateScript(projectId: string, origin: string): string | fals
         config.trackerURL + "');";
     let optionalBlock = "";
 
-    if (options.pageLoads.enabled) {
+    if (project?.options?.pageLoads.enabled) {
         optionalBlock += `reportBack({
             type: "pageLoad",
             payload: {
@@ -60,7 +60,7 @@ export function generateScript(projectId: string, origin: string): string | fals
         });`;
     }
 
-    if (options.pageClicks.enabled) {
+    if (project?.options?.pageClicks.enabled) {
         optionalBlock += `document.addEventListener("click", function (e) {
             const payload = {
                 type: "pageClick",
@@ -70,18 +70,19 @@ export function generateScript(projectId: string, origin: string): string | fals
                 sessionId,
                 url: window.location.href,
                 targetTag: e.target.tagName,
-                targetId: event.target.id,
-                targetHref: event.target.href,
+                targetId: e.target.id,
+                targetHref: e.target.href,
+                targetClass: e.target.classList.value,
                 x: e.clientX,
                 y: e.clientY,
                 timestamp: Date.now(),
             };
-    
+            console.log(e.target.classList);
             reportBack({ type: "pageClick", payload });
         }, { passive: true });`;
     }
 
-    if (options.pageScrolls.enabled) {
+    if (project?.options?.pageScrolls.enabled) {
         optionalBlock += `const trackedPercentages = [25, 50, 75, 100];
         const alreadyTracked = [];
     

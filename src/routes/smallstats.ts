@@ -4,9 +4,9 @@ import { config } from "../config.ts";
 
 export async function getSmallStats() {
     let stats = "";
-    const projects = getProjects();
+    const projects = await getProjects();
     for await (const proj of projects) {
-        stats += await smallStats(proj.project) + "\n";
+        stats += await smallStats(proj) + "\n";
     }
 
     //const stats = await smallStats();

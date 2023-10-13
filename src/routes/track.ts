@@ -1,17 +1,17 @@
-import { getProjectSettings, logData, ProjectConfiguration } from "../db.ts";
+import { getProjectConfiguration, logData, ProjectConfiguration } from "../db.ts";
 import { getOrigin, getUserAgent } from "../helpers.ts";
 import { config } from "../config.ts";
 
-export function track(body: string, req: Request) {
+export async function track(body: string, req: Request) {
     const origin = getOrigin(req);
     const userAgent = getUserAgent(req);
     const data = JSON.parse(body);
     data.payload.userAgent = userAgent.toJSON();
 
-    const { realm, project } = getProjectSettings(data?.payload?.projectId, origin) as ProjectConfiguration;
+    const { realm, project } = await getProjectConfiguration(data?.payload?.projectId, origin) as ProjectConfiguration;
 
     if (project && realm && realm.id && project.id) {
-        logData(data, config.loggerMode);
+        logData(data);
 
         return new Response(body, {
             status: 200,

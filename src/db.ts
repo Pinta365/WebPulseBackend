@@ -1,17 +1,28 @@
-export { logData } from "./loggers/logger.ts";
+import { logError } from "./debug_logger.ts";
+import { config } from "./config.ts";
+let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
+
+async function getDatabase() {
+    if (config.serverMode === "production") {
+        return await Deno.openKv();
+    } else {
+        return await Deno.openKv(Deno.env.get("DENO_KV_LOCAL_DATABASE") || undefined);
+    }
+}
+
+export interface LoggerData {
+    type: string;
+    payload: {
+        [key: string]: string | number;
+    };
+}
 
 export interface Realm {
     id: string;
+    //ownerId: string;
     name: string;
     description?: string;
     allowedOrigins?: string[];
-}
-
-export interface Project {
-    id: string;
-    name: string;
-    description: string;
-    allowedOrigins: string[];
 }
 
 export interface ProjectOptions {
@@ -28,162 +39,121 @@ export interface ProjectOptions {
     };
 }
 
+export interface Project {
+    id: string;
+    realmId: string;
+    //ownerId: string;
+    name: string;
+    description?: string;
+    allowedOrigins?: string[];
+    options?: ProjectOptions;
+}
+
 export interface ProjectConfiguration {
     realm: Realm;
     project: Project;
-    options: ProjectOptions;
-}
-const mockRealms: Realm[] = [
-    {
-        id: "01HCD7PW0S2RDW3HTSHY5J65KN",
-        name: "pinta.land",
-        description: "En realmbeskrivning.",
-    },
-    {
-        id: "01HCD7QZBWY7SBJPVAN03ZJ31S",
-        name: "56k.guru",
-        description: "",
-    },
-];
-
-const mockProjects: ProjectConfiguration[] = [
-    {
-        realm: {
-            id: "01HCD7PW0S2RDW3HTSHY5J65KN",
-            name: "pinta.land",
-            description: "En realmbeskrivning.",
-        },
-        project: {
-            id: "01HCD7QH7ZWZ9HV7BSQ7NZZ6H4",
-            name: "Pinta's Posts",
-            description: "En projektbeskrivning.",
-            allowedOrigins: [
-                "https://pinta.land",
-            ],
-        },
-        options: {
-            pageLoads: {
-                enabled: true,
-                storeUserAgent: true,
-            },
-            pageClicks: {
-                enabled: true,
-                capureAllClicks: false,
-            },
-            pageScrolls: {
-                enabled: true,
-            },
-        },
-    },
-    {
-        realm: {
-            id: "01HCD7QZBWY7SBJPVAN03ZJ31S",
-            name: "56k.guru",
-            description: "",
-        },
-        project: {
-            id: "01HCD7RJCJ55YYYX0471FYPXNE",
-            name: "Lumocs",
-            description: "",
-            allowedOrigins: [],
-        },
-        options: {
-            pageLoads: {
-                enabled: true,
-                storeUserAgent: true,
-            },
-            pageClicks: {
-                enabled: true,
-                capureAllClicks: false,
-            },
-            pageScrolls: {
-                enabled: true,
-            },
-        },
-    },
-    {
-        realm: {
-            id: "01HCD7QZBWY7SBJPVAN03ZJ31S",
-            name: "56k.guru",
-            description: "",
-        },
-        project: {
-            id: "01HCF6YRCKJTXZAFNRMY2W179G",
-            name: "Spot",
-            description: "",
-            allowedOrigins: [],
-        },
-        options: {
-            pageLoads: {
-                enabled: true,
-                storeUserAgent: true,
-            },
-            pageClicks: {
-                enabled: true,
-                capureAllClicks: false,
-            },
-            pageScrolls: {
-                enabled: true,
-            },
-        },
-    },
-    {
-        realm: {
-            id: "01HCD7QZBWY7SBJPVAN03ZJ31S",
-            name: "56k.guru",
-            description: "",
-        },
-        project: {
-            id: "01HCF709JQFEDX6VYFS77PYFMR",
-            name: "Hexagon",
-            description: "",
-            allowedOrigins: [],
-        },
-        options: {
-            pageLoads: {
-                enabled: true,
-                storeUserAgent: true,
-            },
-            pageClicks: {
-                enabled: true,
-                capureAllClicks: false,
-            },
-            pageScrolls: {
-                enabled: true,
-            },
-        },
-    },
-];
-export function getRealms() {
-    return mockRealms;
 }
 
-export function getProjects() {
-    return mockProjects;
+// Should parse and type the data better than "LoggerData["payload"]"
+async function insertEvent(payload: LoggerData["payload"]) {
+    try {
+        if (!database) {
+            database = await getDatabase();
+        }
+
+        await database.set([payload.projectId, payload.timestamp], payload);
+        // More indexes..
+    } catch (error) {
+        logError("Error writing event", error);
+    }
 }
 
-export function getProjectSettings(projectId: string, origin: string): ProjectConfiguration | false {
-    const projects = getProjects();
+/**
+ * Logs the provided analytic data.
+ *
+ * @param data - The analytic data to be logged.
+ */
+export async function logData(data: LoggerData): Promise<void> {
+    const { payload } = data;
+    await insertEvent(payload);
+}
 
-    const fetchedSettings = projects.find((item) => item.project.id === projectId);
-
-    if (!fetchedSettings) {
-        return false;
+export async function getRealms(): Promise<Realm[]> {
+    if (!database) {
+        database = await getDatabase();
+    }
+    const realmList = database.list({ prefix: ["realms"] });
+    const realms: Realm[] = [];
+    for await (const realm of realmList) {
+        realms.push(realm.value as Realm);
     }
 
-    /*
-    Disable origin check for now.
+    return realms;
+}
 
-    const allowedOrigins = fetchedSettings.project.allowedOrigins
-        ? fetchedSettings.project.allowedOrigins
-        : fetchedSettings.realm.allowedOrigins
-        ? fetchedSettings.realm.allowedOrigins
+export async function getProjects(): Promise<Project[]> {
+    if (!database) {
+        database = await getDatabase();
+    }
+    const projectList = database.list({ prefix: ["projects"] });
+    const projects: Project[] = [];
+    for await (const project of projectList) {
+        projects.push(project.value as Project);
+    }
+
+    return projects;
+}
+
+export async function insertProject(project: Project): Promise<boolean> {
+    try {
+        if (!database) {
+            database = await getDatabase();
+        }
+        await database.set(["projects", project.id], project);
+        return true;
+    } catch (error) {
+        logError("Error writing project", error);
+        return false;
+    }
+}
+
+export async function insertRealm(realm: Realm): Promise<boolean> {
+    try {
+        if (!database) {
+            database = await getDatabase();
+        }
+        await database.set(["realms", realm.id], realm);
+        return true;
+    } catch (error) {
+        logError("Error writing realms", error);
+        return false;
+    }
+}
+
+export async function getProjectConfiguration(
+    projectId: string,
+    origin: string,
+): Promise<false | ProjectConfiguration> {
+    const project = (await getProjects()).find((item) => item.id === projectId);
+    if (!project) {
+        return false;
+    }
+    const realm = (await getRealms()).find((item) => item.id === project.realmId);
+
+    if (!realm) {
+        return false;
+    }
+    const configuration: ProjectConfiguration = { realm, project };
+
+    const allowedOrigins = configuration.project.allowedOrigins
+        ? configuration.project.allowedOrigins
+        : configuration.realm.allowedOrigins
+        ? configuration.realm.allowedOrigins
         : [];
 
     if (config.serverMode === "production" && !allowedOrigins.includes(origin)) {
         return false;
     }
-    */
 
-    return fetchedSettings;
+    return configuration;
 }

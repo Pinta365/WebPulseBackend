@@ -26,14 +26,14 @@ Deno.serve(serveOptions, async (req) => {
     try {
         if (parts.length === 2 && parts[0] === "client" && method === "GET") {
             const projectid = parts[1];
-            return routes.getClient(projectid, req);
+            return await routes.getClient(projectid, req);
         } else if (parts.length === 1 && parts[0] === "track" && method === "POST") {
             const body = await req.text();
-            return routes.track(body, req);
+            return await routes.track(body, req);
         } else if (url.pathname === "/" && method === "GET") {
             return routes.root();
         } else if (url.pathname === "/smallstats" && method === "GET") {
-            return routes.getSmallStats();
+            return await routes.getSmallStats();
         } else {
             return new Response("Not Found", { status: 404 });
         }
