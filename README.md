@@ -4,7 +4,7 @@ Host on your own server or Deno Deploy.
 
 **WORK IN PROGRESS**
 
-Proper documentation will be available, check back soon!
+Check out the developer documentation at [developer.webpulseanalytics.com](https://developer.webpulseanalytics.com)
 
 ## Installation
 
