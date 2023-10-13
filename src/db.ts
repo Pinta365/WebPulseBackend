@@ -145,6 +145,7 @@ export async function getProjectConfiguration(
     }
     const configuration: ProjectConfiguration = { realm, project };
 
+    /*
     const allowedOrigins = configuration.project.allowedOrigins
         ? configuration.project.allowedOrigins
         : configuration.realm.allowedOrigins
@@ -154,6 +155,7 @@ export async function getProjectConfiguration(
     if (config.serverMode === "production" && !allowedOrigins.includes(origin)) {
         return false;
     }
+    */
 
     return configuration;
 }
