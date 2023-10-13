@@ -77,7 +77,7 @@ export async function generateScript(projectId: string, origin: string): Promise
                 y: e.clientY,
                 timestamp: Date.now(),
             };
-            console.log(e.target.classList);
+            
             reportBack({ type: "pageClick", payload });
         }, { passive: true });`;
     }
