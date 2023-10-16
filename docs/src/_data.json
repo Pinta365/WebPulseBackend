@@ -3,7 +3,7 @@
   "layout": "page.njk",
   "metas": {
     "title": "=title",
-    "site": "Site Name",
+    "site": "WebPulse Analytics Developer Documentation",
     "lang": "en",
     "description": "=description"
   },
@@ -11,22 +11,13 @@
     {
       "icon": "fab fa-github",
       "title": "GitHub Repository",
-      "url": "https://github.com/hexagon/lumocs"
-    },
-    {
-      "icon": "fab fa-npm",
-      "title": "NPM Library",
-      "url": "https://npmjs.com"
+      "url": "https://github.com/pinta365/WebPulseBackend"
     }
   ],
   "nav_links": [
     {
       "title": "GitHub Repository",
-      "url": "https://github.com/hexagon/lumocs"
-    },
-    {
-      "title": "NPM Library",
-      "url": "https://npmjs.com"
+      "url": "https://github.com/pinta365/WebPulseBackend"
     }
   ]
 }
