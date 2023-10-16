@@ -12,12 +12,21 @@
       "icon": "fab fa-github",
       "title": "GitHub Repository",
       "url": "https://github.com/pinta365/WebPulseBackend"
+    },
+    {
+      "icon": "fas fa-globe",
+      "title": "Website",
+      "url": "https://webpulseanalytics.com"
     }
   ],
   "nav_links": [
     {
       "title": "GitHub Repository",
       "url": "https://github.com/pinta365/WebPulseBackend"
+    },
+    {
+      "title": "webpulseanalytics.com",
+      "url": "https://webpulseanalytics.com"
     }
   ]
 }
