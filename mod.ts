@@ -1,9 +1,18 @@
 import "https://deno.land/std@0.203.0/dotenv/load.ts";
 import { config } from "./src/config.ts";
 import { routes } from "./src/routes/routes.ts";
+import { getDatabase } from "./src/db.ts";
 
 // Temporary debugging log.
 console.log("debug >>", config);
+
+// Preload DB
+try {
+    await getDatabase();
+} catch (e) {
+    console.error("Could not open database", e);
+    Deno.exit();
+}
 
 // Serve as HTTPS?
 const serveOptions = config.serveHttps
