@@ -55,7 +55,7 @@ async function applyMigrations(currentVersion: semver.SemVer, requiredVersion: s
     let migrations = [];
     for await (const { isFile, name } of Deno.readDir(migrationsFolder)) {
         if (isFile && name.endsWith(".ts") && name !== "template.ts") {
-            const relativeFilePath = `./migrations/${name}`;
+            const relativeFilePath = `${new URL('.', import.meta.url).pathname}migrations/${name}`;
             const migration = await import(relativeFilePath);
             migrations.push({
                 version: semver.parse(migration.databaseVersion),

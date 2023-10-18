@@ -10,8 +10,7 @@ console.log("debug >>", config);
 try {
     await getDatabase();
 } catch (e) {
-    console.error("Could not open database", e);
-    Deno.exit();
+    throw new Error(e);
 }
 
 // Serve as HTTPS?
