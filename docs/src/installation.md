@@ -1,9 +1,9 @@
 ---
-title: "Installation"
+title: "Back-end Setup"
 nav_order: 2
 ---
 
-## Installation
+# Setting up the back-end for WebPulse
 
 _HTTPS is required for the backend to work._
 
