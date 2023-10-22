@@ -3,6 +3,7 @@
  */
 
 import { LoggerData } from "../db.ts";
+import { genULID } from "../helpers.ts";
 
 export const databaseVersion = "0.0.2";
 export const changeLog = [
@@ -30,6 +31,9 @@ export async function migration(database: Deno.Kv) {
                 const converted: LoggerData = {
                     ...(loggerData.payload as LoggerData)
                 };
+                // ensure we got payloadid
+                if (!converted.payloadId) converted.payloadId = genULID();
+        
                 if (!converted.type) converted.type = loggerData.type;
                 // Ensure all indices
                 await database.set([converted.projectId, converted.timestamp], converted);
@@ -38,7 +42,8 @@ export async function migration(database: Deno.Kv) {
             // Newer entry
             } else if (Object.prototype.hasOwnProperty.call(entry.value,"type")) {
                 const loggerData = entry.value as LoggerData;
-
+                // ensure we got payloadid
+                if (!loggerData.payloadId) loggerData.payloadId = genULID();
                 // Ensure all indices
                 await database.set([loggerData.projectId, loggerData.timestamp], loggerData);
                 await database.set([loggerData.projectId, loggerData.type, loggerData.timestamp], loggerData);
@@ -56,6 +61,9 @@ export async function migration(database: Deno.Kv) {
                 const converted: LoggerData = {
                     ...(loggerData.payload as LoggerData)
                 };
+                // ensure we got payloadid
+                if (!converted.payloadId) converted.payloadId = genULID();
+
                 if (!converted.type) converted.type = loggerData.type;
                 // Ensure all indices
                 await database.set([converted.projectId, converted.timestamp], converted);
@@ -65,6 +73,8 @@ export async function migration(database: Deno.Kv) {
             } else if (Object.prototype.hasOwnProperty.call(entry.value,"type")) {
                 const loggerData = entry.value as LoggerData;
 
+                // ensure we got payloadid
+                if (!loggerData.payloadId) loggerData.payloadId = genULID();
                 // Ensure all indices
                 await database.set([loggerData.projectId, loggerData.timestamp], loggerData);
                 await database.set([loggerData.projectId, loggerData.type, loggerData.timestamp], loggerData);
