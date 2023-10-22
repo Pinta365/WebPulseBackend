@@ -139,7 +139,7 @@ async function writeOrUpdateSession(payload: LoggerData) {
     } else {
         const sessionData = {
             type: "pageSession",
-            projectId: payload.pageLoadId,
+            projectId: payload.projectId,
             sessionId: payload.sessionId,
             pageLoadId: payload.pageLoadId,
             payloadId: payload.sessionId,
