@@ -7,7 +7,8 @@ import { genULID } from "./helpers.ts";
 let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
-const REQUIRED_DATABASE_VERSION = semver.parse("0.0.1") as semver.SemVer;
+const CURRENT_DATABASE_VERSION = "0.0.2"
+const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
 export async function getDatabase() {
     // Ignore DENO_KV_LOCAL_DATABASE in production
@@ -23,11 +24,11 @@ async function checkMigrations() {
     if (database) {
         const info: Deno.KvEntryMaybe<string> = await database.get(["db_version"]);
 
-        // Get current database version, default to 0.0.0
-        let versionString = "0.0.0";
+        // Get current database version, default to CURRENT_DATABASE_VERSION
+        let versionString = CURRENT_DATABASE_VERSION;
         if (info.value === null) {
             console.log(`Database version did not exist, initializing to '${versionString}'.`);
-            //await database.set(['db_version'], versionString);
+            await database.set(['db_version'], versionString);
         } else {
             versionString = info.value as string;
         }
@@ -74,7 +75,7 @@ async function applyMigrations(currentVersion: semver.SemVer, requiredVersion: s
 
     // Apply migrations in order
     for (const migration of migrations) {
-        console.log(`Applying database migration version '${migration.version}`);
+        console.log(`Applying database migration version '${migration.version}'`);
         for (const change of migration.changeLog) {
             console.log(` - ${change}`);
         }
@@ -121,7 +122,10 @@ async function writeIndexes(payload: LoggerData) {
         database = await getDatabase();
     }
 
-    await database.set([payload.timestamp, payload.projectId, payload.type], payload);
+    await database.set([payload.projectId, payload.timestamp], payload);
+
+    // Added in db version 0.0.2
+    await database.set([payload.projectId, payload.type, payload.timestamp], payload);
     await database.set([payload.payloadId as string], payload);
 }
 
