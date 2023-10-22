@@ -1,7 +1,7 @@
-import { Project } from "./db.ts";
-const database = await Deno.openKv(Deno.env.get("DENO_KV_LOCAL_DATABASE") || undefined);
+import { LoggerData, Project, getDatabase } from "./db.ts";
+const database = await getDatabase();
 
-async function countEvents(entries) {
+async function countEvents(entries: Deno.KvListIterator<LoggerData>, startTime: number, endTime: number) {
     let pageLoads = 0;
     let pageSessions = 0;
     let pageClicks = 0;
@@ -10,20 +10,22 @@ async function countEvents(entries) {
 
     for await (const entry of entries) {
         const event = entry.value;
-        switch (event.type) {
-            case "pageLoad":
-                pageLoads++;
-                uniqueDeviceIds.add(event.deviceId);
-                break;
-            case "pageSession":
-                pageSessions++;
-                break;
-            case "pageClick":
-                pageClicks++;
-                break;
-            case "pageScroll":
-                pageScrolls++;
-                break;
+        if (event.timestamp >= startTime && event.timestamp < endTime) {
+            switch (event.type) {
+                case "pageLoad":
+                    pageLoads++;
+                    uniqueDeviceIds.add(event.deviceId);
+                    break;
+                case "pageSession":
+                    pageSessions++;
+                    break;
+                case "pageClick":
+                    pageClicks++;
+                    break;
+                case "pageScroll":
+                    pageScrolls++;
+                    break;
+            }
         }
     }
     return { pageLoads, pageClicks, pageScrolls,  pageSessions, uniqueDevices: uniqueDeviceIds.size };
@@ -31,29 +33,18 @@ async function countEvents(entries) {
 
 export async function smallStats(project: Project) {
     const now = new Date();
-    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
-    const today = new Date();
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const startOfYesterday = new Date(startOfToday - 24 * 60 * 60 * 1000);
-    const endOfYesterday = new Date(startOfToday - 1);
-
-    const yesterdayEntries = database.list({
-        start: [ project.id, startOfYesterday.getTime()  ],
-        end: [ project.id, endOfYesterday.getTime() ],
-    });
-    const yesterdaysEvents = await countEvents(yesterdayEntries);
-
-    const todayEntries = database.list({
-        start: [ project.id, startOfToday.getTime() ],
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000).getTime();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate()-1).getTime();
+    const entries: Deno.KvListIterator<LoggerData> = database.list({
+        start: [ project.id, startOfYesterday ],
         end: [ project.id, Number.MAX_SAFE_INTEGER ],
     });
-    const todaysEvents = await countEvents(todayEntries);
 
-    const last30MinEntries = database.list({
-        start: [project.id, thirtyMinutesAgo.getTime()],
-        end: [project.id, now.getTime()],
-    });
-    const last30MinEvents = await countEvents(last30MinEntries);
+    // Count events for yesterday, today, and the last 30 minutes
+    const yesterdaysEvents = await countEvents(entries, startOfYesterday, startOfToday);
+    const todaysEvents = await countEvents(entries, startOfToday, now.getTime());
+    const last30MinEvents = await countEvents(entries, thirtyMinutesAgo, now.getTime());
 
     const stats = `${project.name}
     YESTERDAY:\t\tSessions: ${yesterdaysEvents.pageSessions}\tLoads: ${yesterdaysEvents.pageLoads}\tClicks: ${yesterdaysEvents.pageClicks}\tScrolls: ${yesterdaysEvents.pageScrolls}\t Unique visitors: ${yesterdaysEvents.uniqueDevices}
