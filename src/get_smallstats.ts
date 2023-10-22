@@ -1,15 +1,15 @@
 import { LoggerData, Project, getDatabase } from "./db.ts";
 const database = await getDatabase();
 
-async function countEvents(entries: Deno.KvListIterator<LoggerData>, startTime: number, endTime: number) {
+function countEvents(entries: LoggerData[], startTime: number, endTime: number) {
     let pageLoads = 0;
     let pageSessions = 0;
     let pageClicks = 0;
     let pageScrolls = 0;
     const uniqueDeviceIds = new Set();
 
-    for await (const entry of entries) {
-        const event = entry.value;
+    for (const entry of entries) {
+        const event = entry;
         if (event.timestamp >= startTime && event.timestamp < endTime) {
             switch (event.type) {
                 case "pageLoad":
@@ -36,16 +36,21 @@ export async function smallStats(project: Project) {
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000).getTime();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate()-1).getTime();
-    const entries: Deno.KvListIterator<LoggerData> = database.list({
+    const entriesIterator: Deno.KvListIterator<LoggerData> = database.list({
         start: [ project.id, startOfYesterday ],
         end: [ project.id, Number.MAX_SAFE_INTEGER ],
     });
 
-    // Count events for yesterday, today, and the last 30 minutes
-    const yesterdaysEvents = await countEvents(entries, startOfYesterday, startOfToday);
-    const todaysEvents = await countEvents(entries, startOfToday, now.getTime());
-    const last30MinEvents = await countEvents(entries, thirtyMinutesAgo, now.getTime());
+    // Cache all entries
+    const entries = [];
+    for await (const entry of entriesIterator) entries.push(entry.value);
 
+    // Count
+    const yesterdaysEvents = countEvents(entries, startOfYesterday, startOfToday);
+    const todaysEvents = countEvents(entries, startOfToday, now.getTime());
+    const last30MinEvents = countEvents(entries, thirtyMinutesAgo, now.getTime());
+
+    // Display
     const stats = `${project.name}
     YESTERDAY:\t\tSessions: ${yesterdaysEvents.pageSessions}\tLoads: ${yesterdaysEvents.pageLoads}\tClicks: ${yesterdaysEvents.pageClicks}\tScrolls: ${yesterdaysEvents.pageScrolls}\t Unique visitors: ${yesterdaysEvents.uniqueDevices}
     TODAY:\t\tSessions: ${todaysEvents.pageSessions}\tLoads: ${todaysEvents.pageLoads}\tClicks: ${todaysEvents.pageClicks}\tScrolls: ${todaysEvents.pageScrolls}\t Unique visitors: ${todaysEvents.uniqueDevices}
