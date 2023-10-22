@@ -144,8 +144,8 @@ async function writeOrUpdateSession(payload: LoggerData) {
             pageLoadId: payload.pageLoadId,
             payloadId: payload.sessionId,
             timestamp: payload.timestamp,
-            firstEventAt: payload.firstEventAt,
-            lastEventAt: payload.lastEventAt,        
+            firstEventAt: payload.timestamp,
+            lastEventAt: payload.timestamp,        
             // lite okalrt vad jag ska spara på session..
         }
 
