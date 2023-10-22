@@ -38,20 +38,20 @@ export async function smallStats(project: Project) {
     const endOfYesterday = new Date(startOfToday - 1);
 
     const yesterdayEntries = database.list({
-        start: [ startOfYesterday.getTime(), project.id ],
-        end: [ endOfYesterday.getTime(), project.id ],
+        start: [ project.id, startOfYesterday.getTime()  ],
+        end: [ project.id, endOfYesterday.getTime() ],
     });
     const yesterdaysEvents = await countEvents(yesterdayEntries);
 
     const todayEntries = database.list({
-        start: [ startOfToday.getTime(), project.id ],
-        end: [ Number.MAX_SAFE_INTEGER, project.id ],
+        start: [ project.id, startOfToday.getTime() ],
+        end: [ project.id, Number.MAX_SAFE_INTEGER ],
     });
     const todaysEvents = await countEvents(todayEntries);
 
     const last30MinEntries = database.list({
-        start: [thirtyMinutesAgo.getTime(), project.id],
-        end: [now.getTime(), project.id],
+        start: [project.id, thirtyMinutesAgo.getTime()],
+        end: [project.id, now.getTime()],
     });
     const last30MinEvents = await countEvents(last30MinEntries);
 
