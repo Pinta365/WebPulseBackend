@@ -1,21 +1,18 @@
 /**
  * Generate JavaScript that gets sent to the client.
  */
-import { getProjectConfiguration, ProjectConfiguration } from "./db.ts";
-import { genULID } from "./helpers.ts";
+import { Project } from "./db.ts";
 import { config } from "./config.ts";
 
-export async function generateScript(projectId: string, origin: string): Promise<string | false> {
-    const { realm, project } = await getProjectConfiguration(projectId, origin) as ProjectConfiguration;
-
+export function generateScript(project: Project, pageLoadId: string, origin: string): string | false {
+    
     if (!project) {
         return false;
     }
 
-    const loadId = genULID();
     const startBlock = `
     /* genscript v2 */
-    function initTracking(realmId, projectId, reportBackURL) {
+    function initTracking(projectId, reportBackURL) {
         function reportBack(data) {
             const url = reportBackURL;
             const payload = JSON.stringify(data);
@@ -32,42 +29,57 @@ export async function generateScript(projectId: string, origin: string): Promise
             });
         }
 
-        const loadId = "${loadId}";
+        function checkAndRenewSession(sessionObj) {
+            const currentTime = Date.now();
+            if (!sessionObj || (currentTime - sessionObj.lastActivity) > 10 * 60 * 1000) {
+                // Create a new session object
+                sessionObj = {
+                    uuid: generateUUID(),
+                    lastActivity: currentTime
+                };
+            } else {
+                sessionObj.lastActivity = currentTime;
+            }
+            sessionStorage.setItem("sessionObj", JSON.stringify(sessionObj));
+            return sessionObj;
+        }
+
+        const pageLoadDate = Date.now();
+
         const deviceId = localStorage.getItem("deviceId") || generateUUID();
         localStorage.setItem("deviceId", deviceId);
 
-        const sessionId = sessionStorage.getItem("sessionId") || generateUUID();
-        sessionStorage.setItem("sessionId", sessionId);
+        let sessionObj = checkAndRenewSession(JSON.parse(sessionStorage.getItem("sessionObj")));
     `;
-    const endBlock = "} initTracking('" + realm.id + "', '" + project.id + "', '" +
+    const endBlock = "} initTracking('" + project.id + "', '" +
         config.trackerURL + "');";
     let optionalBlock = "";
 
     if (project?.options?.pageLoads.enabled) {
         optionalBlock += `reportBack({
             type: "pageLoad",
-            payload: {
-                type: "pageLoad",
-                realmId,
-                projectId,
-                deviceId,
-                sessionId,
-                referrer: document.referrer,
-                title: document.title,
-                url: window.location.href,
-                timestamp: Date.now(),
-            },
+            projectId,
+            pageLoadId: "${pageLoadId}",
+            deviceId,
+            sessionId: sessionObj.uuid,
+            referrer: document.referrer,
+            title: document.title,
+            url: window.location.href,
+            timestamp: pageLoadDate,
+            firstEventAt: pageLoadDate,
+            lastEventAt: pageLoadDate,
         });`;
     }
 
     if (project?.options?.pageClicks.enabled) {
         optionalBlock += `document.addEventListener("click", function (e) {
-            const payload = {
+            sessionObj = checkAndRenewSession(sessionObj);
+            reportBack({
                 type: "pageClick",
-                realmId,
                 projectId,
+                pageLoadId: "${pageLoadId}",
                 deviceId,
-                sessionId,
+                sessionId: sessionObj.uuid,
                 url: window.location.href,
                 targetTag: e.target.tagName,
                 targetId: e.target.id,
@@ -76,14 +88,13 @@ export async function generateScript(projectId: string, origin: string): Promise
                 x: e.clientX,
                 y: e.clientY,
                 timestamp: Date.now(),
-            };
-            
-            reportBack({ type: "pageClick", payload });
+            });
         }, { passive: true });`;
     }
 
     if (project?.options?.pageScrolls.enabled) {
-        optionalBlock += `const trackedPercentages = [25, 50, 75, 100];
+        optionalBlock += `sessionObj = checkAndRenewSession(sessionObj);
+        const trackedPercentages = [25, 50, 75, 100];
         const alreadyTracked = [];
     
         function throttle(func, delay) {
@@ -104,19 +115,17 @@ export async function generateScript(projectId: string, origin: string): Promise
                 const scrollPercentage = (scrollPosition / pageHeight) * 100;
     
                 for (const percent of trackedPercentages) {
-                    if (scrollPercentage >= percent && !alreadyTracked.includes(percent)) {
-                        const payload = {
+                    if (scrollPercentage >= percent && !alreadyTracked.includes(percent)) {    
+                        reportBack({
                             type: "pageScroll",
-                            realmId,
                             projectId,
+                            pageLoadId: "${pageLoadId}",
                             deviceId,
-                            sessionId,
+                            sessionId: sessionObj.uuid,
                             url: window.location.href,
                             depth: percent,
                             timestamp: Date.now(),
-                        };
-    
-                        reportBack({ type: "pageScroll", payload });
+                        });
                         alreadyTracked.push(percent);
                     }
                 }

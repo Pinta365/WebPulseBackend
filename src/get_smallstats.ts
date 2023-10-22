@@ -3,6 +3,7 @@ const database = await Deno.openKv(Deno.env.get("DENO_KV_LOCAL_DATABASE") || und
 
 async function countEvents(entries) {
     let pageLoads = 0;
+    let pageSessions = 0;
     let pageClicks = 0;
     let pageScrolls = 0;
     const uniqueDeviceIds = new Set();
@@ -14,6 +15,9 @@ async function countEvents(entries) {
                 pageLoads++;
                 uniqueDeviceIds.add(event.deviceId);
                 break;
+            case "pageSession":
+                pageSessions++;
+                break;
             case "pageClick":
                 pageClicks++;
                 break;
@@ -22,7 +26,7 @@ async function countEvents(entries) {
                 break;
         }
     }
-    return { pageLoads, pageClicks, pageScrolls, uniqueDevices: uniqueDeviceIds.size };
+    return { pageLoads, pageClicks, pageScrolls,  pageSessions, uniqueDevices: uniqueDeviceIds.size };
 }
 
 export async function smallStats(project: Project) {
@@ -34,26 +38,26 @@ export async function smallStats(project: Project) {
     const endOfYesterday = new Date(startOfToday - 1);
 
     const yesterdayEntries = database.list({
-        start: [project.id, startOfYesterday.getTime()],
-        end: [project.id, endOfYesterday.getTime()],
+        start: [ startOfYesterday.getTime(), project.id ],
+        end: [ endOfYesterday.getTime(), project.id ],
     });
     const yesterdaysEvents = await countEvents(yesterdayEntries);
 
     const todayEntries = database.list({
-        start: [project.id, startOfToday.getTime()],
-        end: [project.id, Number.MAX_SAFE_INTEGER],
+        start: [ startOfToday.getTime(), project.id ],
+        end: [ Number.MAX_SAFE_INTEGER, project.id ],
     });
     const todaysEvents = await countEvents(todayEntries);
 
     const last30MinEntries = database.list({
-        start: [project.id, thirtyMinutesAgo.getTime()],
-        end: [project.id, now.getTime()],
+        start: [thirtyMinutesAgo.getTime(), project.id],
+        end: [now.getTime(), project.id],
     });
     const last30MinEvents = await countEvents(last30MinEntries);
 
     const stats = `${project.name}
-    YESTERDAY:\t\tLoads: ${yesterdaysEvents.pageLoads}\tClicks: ${yesterdaysEvents.pageClicks}\tScrolls: ${yesterdaysEvents.pageScrolls}\t Unique visitors: ${yesterdaysEvents.uniqueDevices}
-    TODAY:\t\tLoads: ${todaysEvents.pageLoads}\tClicks: ${todaysEvents.pageClicks}\tScrolls: ${todaysEvents.pageScrolls}\t Unique visitors: ${todaysEvents.uniqueDevices}
-    30 MINUTES:\t\tLoads: ${last30MinEvents.pageLoads}\tClicks: ${last30MinEvents.pageClicks}\tScrolls: ${last30MinEvents.pageScrolls}\t Unique visitors: ${last30MinEvents.uniqueDevices}\n`;
+    YESTERDAY:\t\tSessions: ${yesterdaysEvents.pageSessions}\tLoads: ${yesterdaysEvents.pageLoads}\tClicks: ${yesterdaysEvents.pageClicks}\tScrolls: ${yesterdaysEvents.pageScrolls}\t Unique visitors: ${yesterdaysEvents.uniqueDevices}
+    TODAY:\t\tSessions: ${todaysEvents.pageSessions}\tLoads: ${todaysEvents.pageLoads}\tClicks: ${todaysEvents.pageClicks}\tScrolls: ${todaysEvents.pageScrolls}\t Unique visitors: ${todaysEvents.uniqueDevices}
+    30 MINUTES:\t\tSessions: ${last30MinEvents.pageSessions}\tLoads: ${last30MinEvents.pageLoads}\tClicks: ${last30MinEvents.pageClicks}\tScrolls: ${last30MinEvents.pageScrolls}\t Unique visitors: ${last30MinEvents.uniqueDevices}\n`;
     return stats;
 }

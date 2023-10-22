@@ -2,6 +2,7 @@ import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
 import { semver } from "../deps.ts";
 import { resolve } from "../deps.ts";
+import { genULID } from "./helpers.ts";
 
 let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
 
@@ -81,21 +82,6 @@ async function applyMigrations(currentVersion: semver.SemVer, requiredVersion: s
     }
 }
 
-export interface LoggerData {
-    type: string;
-    payload: {
-        [key: string]: string | number;
-    };
-}
-
-export interface Realm {
-    id: string;
-    //ownerId: string;
-    name: string;
-    description?: string;
-    allowedOrigins?: string[];
-}
-
 export interface ProjectOptions {
     pageLoads: {
         enabled: boolean;
@@ -112,55 +98,103 @@ export interface ProjectOptions {
 
 export interface Project {
     id: string;
-    realmId: string;
-    //ownerId: string;
+    ownerId: string;
     name: string;
     description?: string;
     allowedOrigins?: string[];
-    options?: ProjectOptions;
+    options: ProjectOptions;
 }
 
-export interface ProjectConfiguration {
-    realm: Realm;
-    project: Project;
+export interface LoggerData {
+    // Fixed types    
+    timestamp: number;
+    projectId: string;
+    type: string;
+    pageLoadId: string;
+    sessionId: string;    
+    // eventtype specific types.. should be typed at some point
+    [key: string]: string | number | undefined;
+};
+
+async function writeIndexes(payload: LoggerData) {
+    if (!database) {
+        database = await getDatabase();
+    }
+
+    await database.set([payload.timestamp, payload.projectId, payload.type], payload);
+    await database.set([payload.payloadId as string], payload);
 }
 
-// Should parse and type the data better than "LoggerData["payload"]"
-async function insertEvent(payload: LoggerData["payload"]) {
+async function writeOrUpdateSession(payload: LoggerData) {
+    const sessionEvent = await getEventById(payload.sessionId);
+
+    if (sessionEvent && sessionEvent.type === "pageSession") {
+        sessionEvent.lastEventAt = payload.timestamp;
+        await writeIndexes(sessionEvent);
+        
+    } else {
+        const sessionData = {
+            type: "pageSession",
+            projectId: payload.pageLoadId,
+            sessionId: payload.sessionId,
+            pageLoadId: payload.pageLoadId,
+            payloadId: payload.sessionId,
+            timestamp: payload.timestamp,
+            firstEventAt: payload.firstEventAt,
+            lastEventAt: payload.lastEventAt,        
+            // lite okalrt vad jag ska spara på session..
+        }
+
+        if (payload.userAgent) {
+            sessionData.userAgent = payload.userAgent
+        }
+        console.log(sessionData);
+        await writeIndexes(sessionData);
+    }
+}
+
+async function writeOrUpdatePageLoad(payload: LoggerData) {
+    const pageLoadEvent = await getEventById(payload.pageLoadId);
+    if (pageLoadEvent && pageLoadEvent.type === "pageLoad") {
+        pageLoadEvent.lastEventAt = payload.timestamp;
+        await writeIndexes(pageLoadEvent);
+        
+    }else {
+        payload.payloadId = payload.pageLoadId;
+        await writeIndexes(payload);
+    }
+}
+
+export async function insertEvent(payload: LoggerData) {
     try {
         if (!database) {
             database = await getDatabase();
         }
 
-        await database.set([payload.projectId, payload.timestamp], payload);
-        // More indexes..
+        // Unikt id för varje event
+        payload.payloadId = genULID();
+
+        // Uppdatera loads och sessions med lastEventAt
+        await writeOrUpdatePageLoad(payload);
+        await writeOrUpdateSession(payload);
+        
+        // skjut in vanliga payloaden.. hmm om den alltid ska skrivas
+        await writeIndexes(payload);
+
     } catch (error) {
         logError("Error writing event", error);
     }
 }
 
-/**
- * Logs the provided analytic data.
- *
- * @param data - The analytic data to be logged.
- */
-export async function logData(data: LoggerData): Promise<void> {
-    const { payload } = data;
-    await insertEvent(payload);
-}
-
-export async function getRealms(): Promise<Realm[]> {
+export async function getEventById(payloadId: string): Promise<LoggerData> {
     if (!database) {
         database = await getDatabase();
     }
-    const realmList = database.list({ prefix: ["realms"] });
-    const realms: Realm[] = [];
-    for await (const realm of realmList) {
-        realms.push(realm.value as Realm);
-    }
 
-    return realms;
+    const project = await database.get([payloadId]);
+    return project.value as LoggerData;
 }
+
 
 export async function getProjects(): Promise<Project[]> {
     if (!database) {
@@ -188,45 +222,24 @@ export async function insertProject(project: Project): Promise<boolean> {
     }
 }
 
-export async function insertRealm(realm: Realm): Promise<boolean> {
-    try {
-        if (!database) {
-            database = await getDatabase();
-        }
-        await database.set(["realms", realm.id], realm);
-        return true;
-    } catch (error) {
-        logError("Error writing realms", error);
-        return false;
-    }
-}
-
 export async function getProjectConfiguration(
     projectId: string,
     origin: string,
-): Promise<false | ProjectConfiguration> {
+): Promise<false | Project> {
     const project = (await getProjects()).find((item) => item.id === projectId);
     if (!project) {
         return false;
     }
-    const realm = (await getRealms()).find((item) => item.id === project.realmId);
-
-    if (!realm) {
-        return false;
-    }
-    const configuration: ProjectConfiguration = { realm, project };
+    const configuration: Project = project;
 
     /*
-    const allowedOrigins = configuration.project.allowedOrigins
-        ? configuration.project.allowedOrigins
-        : configuration.realm.allowedOrigins
-        ? configuration.realm.allowedOrigins
-        : [];
+    const allowedOrigins = configuration.allowedOrigins
+        ? configuration.allowedOrigins : [];
 
     if (config.serverMode === "production" && !allowedOrigins.includes(origin)) {
         return false;
-    }
-    */
+    }*/
+    
 
     return configuration;
 }

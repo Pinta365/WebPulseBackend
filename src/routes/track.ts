@@ -1,17 +1,21 @@
-import { getProjectConfiguration, logData, ProjectConfiguration } from "../db.ts";
+import { getProjectConfiguration, insertEvent, Project } from "../db.ts";
 import { getOrigin, getUserAgent } from "../helpers.ts";
 import { config } from "../config.ts";
 
 export async function track(body: string, req: Request) {
-    const origin = getOrigin(req);
-    const userAgent = getUserAgent(req);
-    const data = JSON.parse(body);
-    data.payload.userAgent = userAgent.toJSON();
+    const origin = getOrigin(req);    
+    const payload = JSON.parse(body);
 
-    const { realm, project } = await getProjectConfiguration(data?.payload?.projectId, origin) as ProjectConfiguration;
+    const project = await getProjectConfiguration(payload?.projectId, origin) as Project;
 
-    if (project && realm && realm.id && project.id) {
-        logData(data);
+    if (project.id) {    
+
+        if (payload.type === "pageLoad" && project.options.pageLoads.storeUserAgent) {
+            const userAgent = getUserAgent(req);
+            payload.userAgent = userAgent.ua;
+        }
+
+        insertEvent(payload);
 
         return new Response(body, {
             status: 200,
