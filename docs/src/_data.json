@@ -1,32 +1,32 @@
 {
-  "lang": "en",
-  "layout": "page.njk",
-  "metas": {
-    "title": "=title",
-    "site": "WebPulse Analytics Developer Documentation",
     "lang": "en",
-    "description": "=description"
-  },
-  "top_links": [
-    {
-      "icon": "fab fa-github",
-      "title": "GitHub Repository",
-      "url": "https://github.com/pinta365/WebPulseBackend"
+    "layout": "page.njk",
+    "metas": {
+        "title": "=title",
+        "site": "WebPulse Documentation",
+        "lang": "en",
+        "description": "=description"
     },
-    {
-      "icon": "fas fa-globe",
-      "title": "Website",
-      "url": "https://webpulseanalytics.com"
-    }
-  ],
-  "nav_links": [
-    {
-      "title": "GitHub Repository",
-      "url": "https://github.com/pinta365/WebPulseBackend"
-    },
-    {
-      "title": "webpulseanalytics.com",
-      "url": "https://webpulseanalytics.com"
-    }
-  ]
+    "top_links": [
+        {
+            "icon": "fab fa-github",
+            "title": "GitHub Repository",
+            "url": "https://github.com/pinta365/WebPulseBackend"
+        },
+        {
+            "icon": "fas fa-globe",
+            "title": "Website",
+            "url": "https://webpulseanalytics.com"
+        }
+    ],
+    "nav_links": [
+        {
+            "title": "GitHub Repository",
+            "url": "https://github.com/pinta365/WebPulseBackend"
+        },
+        {
+            "title": "webpulseanalytics.com",
+            "url": "https://webpulseanalytics.com"
+        }
+    ]
 }

@@ -3,23 +3,19 @@ title: "Client Setup"
 nav_order: 3
 ---
 
-## Client Configuration
+# Configuring a website to be tracked by WebPulse
 
-### Add a Realm and Project
+This section of the documentation covers how to set up WebPulse Analytics on your website.
 
-To use WebPulse Analytics on your website, you'll need to set up a realm and project. Here's how you can configure them:
+### Add a Project
 
-- **Realm:** A realm represents the highest level of organization, typically corresponding to a domain or a collection of domains.
-
-- **Project:** A project exists within a realm and represents a sub-level of organization, typically corresponding to subdomains or individual domains.
-
-These realms and projects allow you to organize and analyze your website's data effectively.
+To use WebPulse Analytics, you'll need to create a project in the WebPulse Analytics dashboard. A project represents a sub-level of organization, typically corresponding to subdomains or individual domains.
 
 ### Connect the Site
 
 To connect your website to the WebPulse Analytics tracker, you'll need to add a tracking script to your web pages. This script collects data on user interactions and page views, which is sent to the tracking server for analysis. Follow these steps:
 
-1. Set up a Realm and Project for your website within the WebPulse Analytics dashboard.
+1. Create a Project for your website within the WebPulse Analytics dashboard.
 
 2. Once you've created a Project, you will receive a unique Project ID. You'll use this ID in your tracking script.
 
@@ -41,13 +37,12 @@ Here's a full HTML page example that includes the WebPulse Analytics tracking sc
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- WebPulse Analytics Tracking Script -->
+
     <script async src="https://your.server/client/<project-id>" type="module"></script>
 
     <title>Your Page Title</title>
 </head>
 <body>
-   <!-- Page content -->
-</body>
+   </body>
 </html>
+```
