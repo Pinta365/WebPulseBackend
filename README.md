@@ -15,7 +15,6 @@ Get started with WebPulse and take charge of your web analytics today!
 
 ## How It Works
 
-- **Realms:** Organize your analytics at the highest level, whether for a domain or a collection of domains.
 - **Projects:** Create sub-levels for subdomains or individual domains, each with a unique tracking script and project
   ID.
 - **Tracking Scripts:** Asynchronously load tracking scripts on your web pages, collecting data on clicks, scrolls, page
