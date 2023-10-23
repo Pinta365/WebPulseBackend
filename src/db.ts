@@ -138,7 +138,6 @@ async function writeOrUpdateSession(payload: LoggerData) {
     const sessionEvent = await getEventByProjectTypeID(payload.projectId, "pageSession", payload.sessionId);
 
     if (sessionEvent && sessionEvent.type === "pageSession") {
-        console.log("Hittade sess", sessionEvent);
         sessionEvent.lastEventAt = payload.timestamp;
         await writeIndexes(sessionEvent);
     } else {
@@ -157,7 +156,6 @@ async function writeOrUpdateSession(payload: LoggerData) {
         if (payload.userAgent) {
             sessionData.userAgent = payload.userAgent;
         }
-        console.log(sessionData);
         await writeIndexes(sessionData);
     }
 }
@@ -165,7 +163,6 @@ async function writeOrUpdateSession(payload: LoggerData) {
 async function writeOrUpdatePageLoad(payload: LoggerData) {
     const pageLoadEvent = await getEventByProjectTypeID(payload.projectId, "pageLoad", payload.pageLoadId);
     if (pageLoadEvent && pageLoadEvent.type === "pageLoad") {
-        console.log("Hittade pageLoadEvent", pageLoadEvent);
         pageLoadEvent.lastEventAt = payload.timestamp;
         await writeIndexes(pageLoadEvent);
     } else {
