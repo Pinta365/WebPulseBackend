@@ -39,9 +39,8 @@ export async function smallStats(project: Project) {
     const entriesIterator: Deno.KvListIterator<LoggerData> = database.list({
         start: [ project.id, startOfYesterday ],
         end: [ project.id, Number.MAX_SAFE_INTEGER ],
-    });
-    //, {consistency: "eventual", batchSize: 500}
-
+    }, {consistency: "eventual", batchSize: 500});
+    
     // Cache all entries
     const entries = [];
     for await (const entry of entriesIterator) entries.push(entry.value);
