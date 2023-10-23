@@ -6,7 +6,8 @@ nav_order: 4
 # Setting up the front-end for WebPulse
 
 Learn how to set up an own instance of WebPulse Analytics front-end. The repo of the front end is
-https://github.com/pinta365/webpulseanalytics.
+[https://github.com/pinta365/webpulseanalytics](https://github.com/pinta365/webpulseanalytics).
+
 
 ## Getting started
 
@@ -22,13 +23,7 @@ git clone https://github.com/pinta365/webpulseanalytics
 cd webpulseanalytics
 ```
 
-3. Install the dependencies:
-
-```
-deno install
-```
-
-4. Create a `.env` file in the root directory of the project. The contents of the file should be as follows:
+3. Create a `.env` file in the root directory of the project. The contents of the file should be as follows:
 
 ```dotenv
 # WebPulse Analytics Frontend .env Configuration
