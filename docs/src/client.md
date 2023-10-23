@@ -9,11 +9,14 @@ This section of the documentation covers how to set up WebPulse Analytics on you
 
 ### Add a Project
 
-To use WebPulse Analytics, you'll need to create a project in the WebPulse Analytics dashboard. A project represents a sub-level of organization, typically corresponding to subdomains or individual domains.
+To use WebPulse Analytics, you'll need to create a project in the WebPulse Analytics dashboard. A project represents a
+sub-level of organization, typically corresponding to subdomains or individual domains.
 
 ### Connect the Site
 
-To connect your website to the WebPulse Analytics tracker, you'll need to add a tracking script to your web pages. This script collects data on user interactions and page views, which is sent to the tracking server for analysis. Follow these steps:
+To connect your website to the WebPulse Analytics tracker, you'll need to add a tracking script to your web pages. This
+script collects data on user interactions and page views, which is sent to the tracking server for analysis. Follow
+these steps:
 
 1. Create a Project for your website within the WebPulse Analytics dashboard.
 
@@ -25,7 +28,8 @@ To connect your website to the WebPulse Analytics tracker, you'll need to add a 
    <script async src="https://your.server/client/<project-id>" type="module"></script>
    ```
 
-   Replace `your.server` with the URL of your tracking server and `<project-id>` with the unique Project ID you received in step 2.
+   Replace `your.server` with the URL of your tracking server and `<project-id>` with the unique Project ID you received
+   in step 2.
 
 ### Full Page Example
 

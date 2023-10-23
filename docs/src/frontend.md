@@ -5,7 +5,8 @@ nav_order: 4
 
 # Setting up the front-end for WebPulse
 
-Learn how to set up an own instance of WebPulse Analytics front-end. The repo of the front end is https://github.com/pinta365/webpulseanalytics.
+Learn how to set up an own instance of WebPulse Analytics front-end. The repo of the front end is
+https://github.com/pinta365/webpulseanalytics.
 
 ## Getting started
 

@@ -5,7 +5,6 @@ import { Project } from "./db.ts";
 import { config } from "./config.ts";
 
 export function generateScript(project: Project, pageLoadId: string, origin: string): string | false {
-    
     if (!project) {
         return false;
     }

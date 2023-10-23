@@ -1,3 +1,4 @@
+import { Request } from "../deps.ts";
 import { decodeTime, ulid, UserAgent } from "../deps.ts";
 
 export function genULID(seedTime: number = Date.now()): string {

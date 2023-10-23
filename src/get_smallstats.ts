@@ -1,4 +1,4 @@
-import { LoggerData, Project, getDatabase } from "./db.ts";
+import { getDatabase, LoggerData, Project } from "./db.ts";
 const database = await getDatabase();
 
 function countEvents(entries: LoggerData[], startTime: number, endTime: number) {
@@ -28,19 +28,19 @@ function countEvents(entries: LoggerData[], startTime: number, endTime: number) 
             }
         }
     }
-    return { pageLoads, pageClicks, pageScrolls,  pageSessions, uniqueDevices: uniqueDeviceIds.size };
+    return { pageLoads, pageClicks, pageScrolls, pageSessions, uniqueDevices: uniqueDeviceIds.size };
 }
 
 export async function smallStats(project: Project) {
     const now = new Date();
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000).getTime();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate()-1).getTime();
+    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime();
     const entriesIterator: Deno.KvListIterator<LoggerData> = database.list({
-        start: [ project.id, startOfYesterday ],
-        end: [ project.id, Number.MAX_SAFE_INTEGER ],
-    }, {consistency: "eventual", batchSize: 500});
-    
+        start: [project.id, startOfYesterday],
+        end: [project.id, Number.MAX_SAFE_INTEGER],
+    }, { consistency: "eventual", batchSize: 500 });
+
     // Cache all entries
     const entries = [];
     for await (const entry of entriesIterator) entries.push(entry.value);

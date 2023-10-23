@@ -1,4 +1,3 @@
-import { config } from "../config.ts";
 import { minifyHTML } from "../helpers.ts";
 
 export function root() {
@@ -40,14 +39,5 @@ export function root() {
     </html>
 `;
 
-    return new Response(
-        minifyHTML(htmlBody),
-        {
-            status: 200,
-            headers: {
-                "content-type": "text/html",
-                ...config.commonHeaders,
-            },
-        },
-    );
+    return minifyHTML(htmlBody);
 }

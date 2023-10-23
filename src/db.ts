@@ -7,7 +7,7 @@ import { genULID } from "./helpers.ts";
 let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
-const CURRENT_DATABASE_VERSION = "0.0.2"
+const CURRENT_DATABASE_VERSION = "0.0.2";
 const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
 export async function getDatabase() {
@@ -28,7 +28,7 @@ async function checkMigrations() {
         let versionString = CURRENT_DATABASE_VERSION;
         if (info.value === null) {
             console.log(`Database version did not exist, initializing to '${versionString}'.`);
-            await database.set(['db_version'], versionString);
+            await database.set(["db_version"], versionString);
         } else {
             versionString = info.value as string;
         }
@@ -57,7 +57,7 @@ async function applyMigrations(currentVersion: semver.SemVer, requiredVersion: s
     let migrations = [];
     for await (const { isFile, name } of Deno.readDir(migrationsFolder)) {
         if (isFile && name.endsWith(".ts") && name !== "template.ts") {
-            const relativeFilePath = `${new URL('.', import.meta.url).pathname}migrations/${name}`;
+            const relativeFilePath = `${new URL(".", import.meta.url).pathname}migrations/${name}`;
             const migration = await import(relativeFilePath);
             migrations.push({
                 version: semver.parse(migration.databaseVersion),
@@ -107,15 +107,16 @@ export interface Project {
 }
 
 export interface LoggerData {
-    // Fixed types    
+    // Fixed types
     timestamp: number;
     projectId: string;
     type: string;
     pageLoadId: string;
-    sessionId: string;    
+    sessionId: string;
+    payloadId: string;
     // eventtype specific types.. should be typed at some point
     [key: string]: string | number | undefined;
-};
+}
 
 async function writeIndexes(payload: LoggerData) {
     if (!database) {
@@ -126,18 +127,22 @@ async function writeIndexes(payload: LoggerData) {
 
     // Added in db version 0.0.2
     await database.set([payload.projectId, payload.type, payload.timestamp], payload);
-    await database.set([payload.payloadId as string], payload);
+
+    //await database.set([payload.payloadId as string], payload);
+    if (payload.type === "pageSession" || payload.type === "pageLoad") {
+        await database.set([payload.projectId, payload.type, payload.payloadId], payload);
+    }
 }
 
 async function writeOrUpdateSession(payload: LoggerData) {
-    const sessionEvent = await getEventById(payload.sessionId);
+    const sessionEvent = await getEventByProjectTypeID(payload.projectId, "pageSession", payload.sessionId);
 
     if (sessionEvent && sessionEvent.type === "pageSession") {
+        console.log("Hittade sess", sessionEvent);
         sessionEvent.lastEventAt = payload.timestamp;
         await writeIndexes(sessionEvent);
-        
     } else {
-        const sessionData = {
+        const sessionData: LoggerData = {
             type: "pageSession",
             projectId: payload.projectId,
             sessionId: payload.sessionId,
@@ -145,12 +150,12 @@ async function writeOrUpdateSession(payload: LoggerData) {
             payloadId: payload.sessionId,
             timestamp: payload.timestamp,
             firstEventAt: payload.timestamp,
-            lastEventAt: payload.timestamp,        
+            lastEventAt: payload.timestamp,
             // lite okalrt vad jag ska spara på session..
-        }
+        };
 
         if (payload.userAgent) {
-            sessionData.userAgent = payload.userAgent
+            sessionData.userAgent = payload.userAgent;
         }
         console.log(sessionData);
         await writeIndexes(sessionData);
@@ -158,12 +163,12 @@ async function writeOrUpdateSession(payload: LoggerData) {
 }
 
 async function writeOrUpdatePageLoad(payload: LoggerData) {
-    const pageLoadEvent = await getEventById(payload.pageLoadId);
+    const pageLoadEvent = await getEventByProjectTypeID(payload.projectId, "pageLoad", payload.pageLoadId);
     if (pageLoadEvent && pageLoadEvent.type === "pageLoad") {
+        console.log("Hittade pageLoadEvent", pageLoadEvent);
         pageLoadEvent.lastEventAt = payload.timestamp;
         await writeIndexes(pageLoadEvent);
-        
-    }else {
+    } else {
         payload.payloadId = payload.pageLoadId;
         await writeIndexes(payload);
     }
@@ -181,24 +186,22 @@ export async function insertEvent(payload: LoggerData) {
         // Uppdatera loads och sessions med lastEventAt
         await writeOrUpdatePageLoad(payload);
         await writeOrUpdateSession(payload);
-        
+
         // skjut in vanliga payloaden.. hmm om den alltid ska skrivas
         await writeIndexes(payload);
-
     } catch (error) {
         logError("Error writing event", error);
     }
 }
 
-export async function getEventById(payloadId: string): Promise<LoggerData> {
+export async function getEventByProjectTypeID(projectId: string, type: string, id: string): Promise<LoggerData> {
     if (!database) {
         database = await getDatabase();
     }
 
-    const project = await database.get([payloadId]);
+    const project = await database.get([projectId, type, id]);
     return project.value as LoggerData;
 }
-
 
 export async function getProjects(): Promise<Project[]> {
     if (!database) {
@@ -243,7 +246,6 @@ export async function getProjectConfiguration(
     if (config.serverMode === "production" && !allowedOrigins.includes(origin)) {
         return false;
     }*/
-    
 
     return configuration;
 }

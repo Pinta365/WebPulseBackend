@@ -1,6 +1,6 @@
+import { Request } from "../../deps.ts";
 import { generateScript } from "../generate_client.ts";
-import { config } from "../config.ts";
-import { getOrigin, minifyJS, genULID } from "../helpers.ts";
+import { genULID, getOrigin, minifyJS } from "../helpers.ts";
 import { getProjectConfiguration, Project } from "../db.ts";
 
 export async function getClient(projectId: string, req: Request) {
@@ -10,18 +10,8 @@ export async function getClient(projectId: string, req: Request) {
     const body = generateScript(project, pageLoadId, origin);
 
     if (project && body) {
-        
-        return new Response(minifyJS(body), {
-            status: 200,
-            headers: {
-                "content-type": "application/javascript",
-                ...config.commonHeaders,
-            },
-        });
+        return minifyJS(body);
     } else {
-        return new Response(null, {
-            status: 403,
-            headers: config.commonHeaders,
-        });
+        return undefined;
     }
 }

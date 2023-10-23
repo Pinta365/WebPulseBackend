@@ -1,6 +1,5 @@
 import { smallStats } from "../get_smallstats.ts";
 import { getProjects } from "../db.ts";
-import { config } from "../config.ts";
 
 export async function getSmallStats() {
     let stats = "";
@@ -9,9 +8,5 @@ export async function getSmallStats() {
         stats += await smallStats(proj) + "\n";
     }
 
-    //const stats = await smallStats();
-    return new Response(stats, {
-        status: 200,
-        headers: config.commonHeaders,
-    });
+    return stats;
 }

@@ -23,24 +23,27 @@ export async function migration(database: Deno.Kv) {
         await Promise.all([]);
 
         // Convert indices written during the [ts, projectId, ...]-era
-        const all3 = database.list({start: [0], end: [Infinity]});
+        const all3 = database.list({ start: [0], end: [Infinity] });
         for await (const entry of all3) {
             // Old entry
-            if (entry.value && Object.prototype.hasOwnProperty.call(entry.value,"payload") && Object.prototype.hasOwnProperty.call(entry.value,"type")) {
+            if (
+                entry.value && Object.prototype.hasOwnProperty.call(entry.value, "payload") &&
+                Object.prototype.hasOwnProperty.call(entry.value, "type")
+            ) {
                 const loggerData = entry.value as OldLoggerData;
                 const converted: LoggerData = {
-                    ...(loggerData.payload as LoggerData)
+                    ...(loggerData.payload as LoggerData),
                 };
                 // ensure we got payloadid
                 if (!converted.payloadId) converted.payloadId = genULID();
-        
+
                 if (!converted.type) converted.type = loggerData.type;
                 // Ensure all indices
                 await database.set([converted.projectId, converted.timestamp], converted);
                 await database.set([converted.projectId, loggerData.type, converted.timestamp], converted);
                 await database.set([converted.payloadId as string], converted);
-            // Newer entry
-            } else if (Object.prototype.hasOwnProperty.call(entry.value,"type")) {
+                // Newer entry
+            } else if (Object.prototype.hasOwnProperty.call(entry.value, "type")) {
                 const loggerData = entry.value as LoggerData;
                 // ensure we got payloadid
                 if (!loggerData.payloadId) loggerData.payloadId = genULID();
@@ -48,18 +51,20 @@ export async function migration(database: Deno.Kv) {
                 await database.set([loggerData.projectId, loggerData.timestamp], loggerData);
                 await database.set([loggerData.projectId, loggerData.type, loggerData.timestamp], loggerData);
                 await database.set([loggerData.payloadId as string], loggerData);
-
             }
         }
 
         // Convert indices written during the old era
-        const all4 = database.list({start: ["0"], end: ["Z"]});
+        const all4 = database.list({ start: ["0"], end: ["Z"] });
         for await (const entry of all4) {
             // Old entry
-            if (entry.value && Object.prototype.hasOwnProperty.call(entry.value,"payload") && Object.prototype.hasOwnProperty.call(entry.value,"type")) {
+            if (
+                entry.value && Object.prototype.hasOwnProperty.call(entry.value, "payload") &&
+                Object.prototype.hasOwnProperty.call(entry.value, "type")
+            ) {
                 const loggerData = entry.value as OldLoggerData;
                 const converted: LoggerData = {
-                    ...(loggerData.payload as LoggerData)
+                    ...(loggerData.payload as LoggerData),
                 };
                 // ensure we got payloadid
                 if (!converted.payloadId) converted.payloadId = genULID();
@@ -69,8 +74,8 @@ export async function migration(database: Deno.Kv) {
                 await database.set([converted.projectId, converted.timestamp], converted);
                 await database.set([converted.projectId, loggerData.type, converted.timestamp], converted);
                 await database.set([converted.payloadId as string], converted);
-            // Newer entry
-            } else if (Object.prototype.hasOwnProperty.call(entry.value,"type")) {
+                // Newer entry
+            } else if (Object.prototype.hasOwnProperty.call(entry.value, "type")) {
                 const loggerData = entry.value as LoggerData;
 
                 // ensure we got payloadid
@@ -79,7 +84,6 @@ export async function migration(database: Deno.Kv) {
                 await database.set([loggerData.projectId, loggerData.timestamp], loggerData);
                 await database.set([loggerData.projectId, loggerData.type, loggerData.timestamp], loggerData);
                 await database.set([loggerData.payloadId as string], loggerData);
-
             }
         }
 
