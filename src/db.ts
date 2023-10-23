@@ -122,7 +122,7 @@ async function writeIndexes(payload: LoggerData) {
         database = await getDatabase();
     }
 
-    await database.set([payload.projectId, payload.timestamp], payload);
+    await database.set([payload.projectId, payload.timestamp, payload.type], payload);
 
     // Added in db version 0.0.2
     await database.set([payload.projectId, payload.type, payload.timestamp], payload);
