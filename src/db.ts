@@ -130,12 +130,12 @@ async function writeIndexes(payload: LoggerData) {
 
     //await database.set([payload.payloadId as string], payload);
     if (payload.type === "pageSession" || payload.type === "pageLoad") {
-        await database.set([payload.projectId, payload.type, payload.payloadId], payload);
+        await database.set([payload.payloadId as string], payload);
     }
 }
 
 async function writeOrUpdateSession(payload: LoggerData) {
-    const sessionEvent = await getEventByProjectTypeID(payload.projectId, "pageSession", payload.sessionId);
+    const sessionEvent = await getEventById(payload.sessionId);
 
     if (sessionEvent && sessionEvent.type === "pageSession") {
         sessionEvent.lastEventAt = payload.timestamp;
@@ -161,7 +161,7 @@ async function writeOrUpdateSession(payload: LoggerData) {
 }
 
 async function writeOrUpdatePageLoad(payload: LoggerData) {
-    const pageLoadEvent = await getEventByProjectTypeID(payload.projectId, "pageLoad", payload.pageLoadId);
+    const pageLoadEvent = await getEventById(payload.pageLoadId);
     if (pageLoadEvent && pageLoadEvent.type === "pageLoad") {
         pageLoadEvent.lastEventAt = payload.timestamp;
         await writeIndexes(pageLoadEvent);
@@ -191,12 +191,12 @@ export async function insertEvent(payload: LoggerData) {
     }
 }
 
-export async function getEventByProjectTypeID(projectId: string, type: string, id: string): Promise<LoggerData> {
+export async function getEventById(id: string): Promise<LoggerData> {
     if (!database) {
         database = await getDatabase();
     }
 
-    const project = await database.get([projectId, type, id]);
+    const project = await database.get([id]);
     return project.value as LoggerData;
 }
 
