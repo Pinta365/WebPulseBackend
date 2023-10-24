@@ -1,5 +1,5 @@
 import "https://deno.land/std@0.203.0/dotenv/load.ts";
-import router from "./src/routes/routes.ts";
+import router from "./routes/routes.ts";
 import { config } from "./src/config.ts";
 import { getDatabase } from "./src/db.ts";
 import { Application } from "./deps.ts";
