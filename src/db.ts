@@ -7,7 +7,7 @@ import { genULID } from "./helpers.ts";
 let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
-const CURRENT_DATABASE_VERSION = "0.0.1";
+const CURRENT_DATABASE_VERSION = "0.0.2";
 const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
 export async function getDatabase() {
