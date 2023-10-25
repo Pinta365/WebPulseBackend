@@ -8,6 +8,7 @@ import { Application } from "./deps.ts";
 console.log("debug >>", config);
 
 // Preload DB
+
 try {
     await getDatabase();
 } catch (e) {

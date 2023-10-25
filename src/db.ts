@@ -1,24 +1,59 @@
+
+import { MongoClient, Db, ObjectId } from 'npm:mongodb';
 import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
 import { semver } from "../deps.ts";
 import { resolve } from "../deps.ts";
-import { genULID } from "./helpers.ts";
 
-let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
+export interface ProjectOptions {
+    pageLoads: {
+        enabled: boolean;
+        storeUserAgent: boolean;
+    };
+    pageClicks: {
+        enabled: boolean;
+        capureAllClicks: boolean;
+    };
+    pageScrolls: {
+        enabled: boolean;
+    };
+}
+
+export interface Project {
+    _id?: ObjectId; //skapas is DBn
+    id: string;
+    ownerId: string;
+    name: string;
+    description?: string;
+    allowedOrigins?: string[];
+    options: ProjectOptions;
+}
+
+const mongoClient = new MongoClient(config.MongoUri!);
+let mongoDatebase: Db | null = null; // 
+
+export async function getDatabase(): Promise<Db> {
+    if (!mongoDatebase) {
+        await mongoClient.connect();
+        mongoDatebase = mongoClient.db("WebPulse");
+        console.log("Connected to MongoDB");
+    }
+    //await checkMigrations();
+    return mongoDatebase;
+}
+export async function disconnect(): Promise<void> {
+    await mongoClient.close();
+    mongoDatebase = null;
+    console.log("MongoDB connection closed.");
+}
+
+/*
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
 const CURRENT_DATABASE_VERSION = "0.0.2";
 const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
-export async function getDatabase() {
-    // Ignore DENO_KV_LOCAL_DATABASE in production
-    const connectionString = config.serverMode !== "production"
-        ? Deno.env.get("DENO_KV_LOCAL_DATABASE") || undefined
-        : undefined;
-    database = await Deno.openKv(connectionString);
-    await checkMigrations();
-    return database;
-}
+
 
 async function checkMigrations() {
     if (database) {
@@ -82,147 +117,121 @@ async function applyMigrations(currentVersion: semver.SemVer) {
         await migration.migration(database);
     }
 }
+*/
 
-export interface ProjectOptions {
-    pageLoads: {
-        enabled: boolean;
-        storeUserAgent: boolean;
-    };
-    pageClicks: {
-        enabled: boolean;
-        capureAllClicks: boolean;
-    };
-    pageScrolls: {
-        enabled: boolean;
-    };
-}
-
-export interface Project {
-    id: string;
-    ownerId: string;
-    name: string;
-    description?: string;
-    allowedOrigins?: string[];
-    options: ProjectOptions;
-}
-
-export interface LoggerData {
+export interface EventPayload {
     // Fixed types
     timestamp: number;
     projectId: string;
     type: string;
     pageLoadId: string;
     sessionId: string;
-    payloadId: string;
     // eventtype specific types.. should be typed at some point
     [key: string]: string | number | undefined;
 }
 
-async function writeIndexes(payload: LoggerData) {
-    if (!database) {
-        database = await getDatabase();
-    }
 
-    await database.set([payload.projectId, payload.timestamp, payload.type], payload);
-
-    // Added in db version 0.0.2
-    await database.set([payload.projectId, payload.type, payload.timestamp], payload);
-
-    //await database.set([payload.payloadId as string], payload);
-    if (payload.type === "pageSession" || payload.type === "pageLoad") {
-        await database.set([payload.payloadId as string], payload);
-    }
-}
-
-async function writeOrUpdateSession(payload: LoggerData) {
-    const sessionEvent = await getEventById(payload.sessionId);
-
-    if (sessionEvent && sessionEvent.type === "pageSession") {
-        sessionEvent.lastEventAt = payload.timestamp;
-        await writeIndexes(sessionEvent);
-    } else {
-        const sessionData: LoggerData = {
-            type: "pageSession",
-            projectId: payload.projectId,
-            sessionId: payload.sessionId,
-            pageLoadId: payload.pageLoadId,
-            payloadId: payload.sessionId,
-            timestamp: payload.timestamp,
-            firstEventAt: payload.timestamp,
-            lastEventAt: payload.timestamp,
-            // lite okalrt vad jag ska spara på session..
-        };
-
-        if (payload.userAgent) {
-            sessionData.userAgent = payload.userAgent;
-        }
-        await writeIndexes(sessionData);
-    }
-}
-
-async function writeOrUpdatePageLoad(payload: LoggerData) {
-    const pageLoadEvent = await getEventById(payload.pageLoadId);
-    if (pageLoadEvent && pageLoadEvent.type === "pageLoad") {
-        pageLoadEvent.lastEventAt = payload.timestamp;
-        await writeIndexes(pageLoadEvent);
-    } else {
-        payload.payloadId = payload.pageLoadId;
-        await writeIndexes(payload);
-    }
-}
-
-export async function insertEvent(payload: LoggerData) {
+export async function insertEvent(payload: EventPayload) {
     try {
-        if (!database) {
-            database = await getDatabase();
-        }
+        try {
+            const collection = (await getDatabase()).collection('events');
+            const insertedId = (await collection.insertOne(payload)).insertedId.toString();
+            console.log(payload.type, insertedId);
 
-        // Unikt id för varje event
-        payload.payloadId = genULID();
+            if (payload.type === "pageLoad") {
+                const sessionData: EventPayload = {
+                    type: "pageSession",
+                    projectId: payload.projectId,
+                    sessionId: payload.sessionId,
+                    pageLoadId: payload.pageLoadId,
+                    timestamp: payload.timestamp,
+                    firstEventAt: payload.timestamp,
+                    lastEventAt: payload.timestamp,
+                };
+    
+                if (payload.userAgent) {
+                    sessionData.userAgent = payload.userAgent;
+                }
 
-        // Uppdatera loads och sessions med lastEventAt
-        await writeOrUpdatePageLoad(payload);
-        await writeOrUpdateSession(payload);
+                const insertedSessionId = (await collection.insertOne(sessionData)).insertedId.toString();
+                console.log(sessionData.type, insertedSessionId);
+            }          
+           
+        } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
 
-        // skjut in vanliga payloaden.. hmm om den alltid ska skrivas
-        await writeIndexes(payload);
+
+} catch (error) {
+    logError("Error writing event", error);
+}
+}
+
+export async function getEvents(projectId: string): Promise<EventPayload[]> {
+    try {
+        const collection = (await getDatabase()).collection('events');
+        const events = await collection.find({ projectId }).toArray() as unknown as EventPayload[];
+
+
+
+        return events;
+
     } catch (error) {
-        logError("Error writing event", error);
+        console.error(error);
+        throw new Error(error);
     }
 }
 
-export async function getEventById(id: string): Promise<LoggerData> {
-    if (!database) {
-        database = await getDatabase();
-    }
+export async function getProject(projectId: string): Promise<Project> {
+    try {
+        const collection = (await getDatabase()).collection('projects');
+        const idObject = new ObjectId(projectId);
+        const project = await collection.findOne({ _id: idObject }) as unknown as Project;
+        project.id = projectId;
 
-    const project = await database.get([id]);
-    return project.value as LoggerData;
+
+
+        return project;
+
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
 }
 
 export async function getProjects(): Promise<Project[]> {
-    if (!database) {
-        database = await getDatabase();
-    }
-    const projectList = database.list({ prefix: ["projects"] });
-    const projects: Project[] = [];
-    for await (const project of projectList) {
-        projects.push(project.value as Project);
-    }
+    try {
+        const collection = (await getDatabase()).collection('projects');
+        const projects = await collection.find({}).toArray() as unknown as Project[];
 
-    return projects;
+
+
+        projects.forEach(project => {
+            const idObject = new ObjectId(project._id);
+            project.id = idObject.toString();
+        });
+
+        return projects;
+
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
 }
 
-export async function insertProject(project: Project): Promise<boolean> {
+export async function insertProject(project: Project): Promise<string> {
     try {
-        if (!database) {
-            database = await getDatabase();
-        }
-        await database.set(["projects", project.id], project);
-        return true;
+        const collection = (await getDatabase()).collection('projects');
+        const projectReturned = await collection.insertOne(project);
+
+
+
+        return projectReturned.insertedId.toString();
+
     } catch (error) {
-        logError("Error writing project", error);
-        return false;
+        console.error(error);
+        throw new Error(error);
     }
 }
 
@@ -230,7 +239,8 @@ export async function getProjectConfiguration(
     projectId: string,
     origin: string,
 ): Promise<false | Project> {
-    const project = (await getProjects()).find((item) => item.id === projectId);
+    const project = await getProject(projectId);
+    
     if (!project) {
         return false;
     }
@@ -246,3 +256,4 @@ export async function getProjectConfiguration(
 
     return configuration;
 }
+
