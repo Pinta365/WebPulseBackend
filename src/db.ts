@@ -1,9 +1,8 @@
-
-import { MongoClient, Db, ObjectId } from 'npm:mongodb';
+import { Db, MongoClient, ObjectId } from "npm:mongodb";
 import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
-import { semver } from "../deps.ts";
-import { resolve } from "../deps.ts";
+//import { semver } from "../deps.ts";
+//import { resolve } from "../deps.ts";
 
 export interface ProjectOptions {
     pageLoads: {
@@ -30,7 +29,7 @@ export interface Project {
 }
 
 const mongoClient = new MongoClient(config.MongoUri!);
-let mongoDatebase: Db | null = null; // 
+let mongoDatebase: Db | null = null; //
 
 export async function getDatabase(): Promise<Db> {
     if (!mongoDatebase) {
@@ -125,58 +124,209 @@ export interface EventPayload {
     projectId: string;
     type: string;
     pageLoadId: string;
+    deviceId: string;
     sessionId: string;
+    userAgent?: string;
     // eventtype specific types.. should be typed at some point
     [key: string]: string | number | undefined;
 }
 
+interface LocationData {
+    country: string;
+    blah: string;
+}
+
+interface PageLoad {
+    pageLoadId: string;
+    timestamp: number;
+    firstEventAt: number;
+    lastEventAt: number;
+
+    clicks: number;
+    scrolls: number;
+}
+
+interface SessionObject {
+    projectId: string;
+    sessionId: string;
+    pageLoadId: string;
+    deviceId: string;
+    timestamp: number;
+    firstEventAt: number;
+    lastEventAt: number;
+    userAgent?: string;
+    location?: LocationData;
+
+    loads: number;
+    clicks: number;
+    scrolls: number;
+
+    pageLoads: PageLoad[];
+}
+
+interface DeviceObject {
+    projectId: string;
+    deviceId: string;
+    firstEventAt: number;
+    lastEventAt: number;
+    sessionIds: string[];
+
+    sessions: number;
+    loads: number;
+    clicks: number;
+    scrolls: number;
+}
+
+type IncrementData = {
+    "pageLoads.$.clicks"?: number;
+    "pageLoads.$.scrolls"?: number;
+};
+
+async function handleSessionLogic(payload: EventPayload) {
+    const db = await getDatabase();
+    const sessionCollection = db.collection("sessions");
+
+    const session = await sessionCollection.findOne({ sessionId: payload.sessionId }) as SessionObject | null;
+
+    const isClickEvent = payload.type === "pageClick";
+    const isScrollEvent = payload.type === "pageScroll";
+    const isLoadEvent = payload.type === "pageLoad";
+
+    const newPageLoad = {
+        pageLoadId: payload.pageLoadId,
+        url: payload.url,
+        title: payload.title,
+        referer: payload.referrer,
+        timestamp: payload.timestamp,
+        firstEventAt: payload.timestamp,
+        lastEventAt: payload.timestamp,
+        clicks: isClickEvent ? 1 : 0,
+        scrolls: isScrollEvent ? 1 : 0,
+    };
+
+    if (session) {
+        const existingPageLoad = session.pageLoads.find((pageLoad) => pageLoad.pageLoadId === payload.pageLoadId);
+
+        if (existingPageLoad) {
+            const incrementData: IncrementData = {};
+
+            if (isClickEvent) {
+                incrementData["pageLoads.$.clicks"] = 1;
+                session.clicks += 1;
+            }
+
+            if (isScrollEvent) {
+                incrementData["pageLoads.$.scrolls"] = 1;
+                session.scrolls += 1;
+            }
+
+            await sessionCollection.updateOne(
+                { sessionId: payload.sessionId, "pageLoads.pageLoadId": payload.pageLoadId },
+                {
+                    $inc: incrementData,
+                    $set: { "pageLoads.$.lastEventAt": payload.timestamp },
+                },
+            );
+        } else {
+            session.loads += 1;
+            await sessionCollection.updateOne({ sessionId: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
+        }
+
+        await sessionCollection.updateOne({ sessionId: payload.sessionId }, {
+            $set: {
+                lastEventAt: payload.timestamp,
+                clicks: session.clicks,
+                scrolls: session.scrolls,
+                loads: session.loads,
+            },
+        });
+    } else {
+        const sessionData: SessionObject = {
+            projectId: payload.projectId,
+            sessionId: payload.sessionId,
+            pageLoadId: payload.pageLoadId,
+            deviceId: payload.deviceId,
+            timestamp: payload.timestamp,
+            firstEventAt: payload.timestamp,
+            lastEventAt: payload.timestamp,
+            loads: isLoadEvent ? 1 : 0,
+            clicks: isClickEvent ? 1 : 0,
+            scrolls: isScrollEvent ? 1 : 0,
+            pageLoads: [newPageLoad],
+        };
+
+        if (payload.userAgent) {
+            sessionData.userAgent = payload.userAgent as string;
+        }
+        await sessionCollection.insertOne(sessionData);
+    }
+}
+
+async function handleDeviceLogic(payload: EventPayload) {
+    const db = await getDatabase();
+    const deviceCollection = db.collection("devices");
+
+    const device = await deviceCollection.findOne({ deviceId: payload.deviceId }) as DeviceObject | null;
+
+    const isClickEvent = payload.type === "pageClick";
+    const isScrollEvent = payload.type === "pageScroll";
+    const isLoadEvent = payload.type === "pageLoad";
+
+    if (device) {
+        const incrementData = {
+            sessions: !device.sessionIds.includes(payload.sessionId) ? 1 : 0,
+            loads: isLoadEvent ? 1 : 0,
+            clicks: isClickEvent ? 1 : 0,
+            scrolls: isScrollEvent ? 1 : 0,
+        };
+
+        await deviceCollection.updateOne(
+            { deviceId: payload.deviceId },
+            {
+                $addToSet: { sessionIds: payload.sessionId },
+                $set: { lastEventAt: payload.timestamp },
+                $inc: incrementData,
+            },
+        );
+    } else {
+        // Create new device entry
+        const newDevice: DeviceObject = {
+            projectId: payload.projectId,
+            deviceId: payload.deviceId,
+            firstEventAt: payload.timestamp,
+            lastEventAt: payload.timestamp,
+            sessionIds: [payload.sessionId],
+            sessions: 1,
+            loads: isLoadEvent ? 1 : 0,
+            clicks: isClickEvent ? 1 : 0,
+            scrolls: isScrollEvent ? 1 : 0,
+        };
+        await deviceCollection.insertOne(newDevice);
+    }
+}
 
 export async function insertEvent(payload: EventPayload) {
     try {
-        try {
-            const collection = (await getDatabase()).collection('events');
-            const insertedId = (await collection.insertOne(payload)).insertedId.toString();
-            console.log(payload.type, insertedId);
+        const db = await getDatabase();
 
-            if (payload.type === "pageLoad") {
-                const sessionData: EventPayload = {
-                    type: "pageSession",
-                    projectId: payload.projectId,
-                    sessionId: payload.sessionId,
-                    pageLoadId: payload.pageLoadId,
-                    timestamp: payload.timestamp,
-                    firstEventAt: payload.timestamp,
-                    lastEventAt: payload.timestamp,
-                };
-    
-                if (payload.userAgent) {
-                    sessionData.userAgent = payload.userAgent;
-                }
+        // Insert the "raw" event into the events collection
+        const collection = db.collection("events");
+        await collection.insertOne(payload);
 
-                const insertedSessionId = (await collection.insertOne(sessionData)).insertedId.toString();
-                console.log(sessionData.type, insertedSessionId);
-            }          
-           
-        } catch (error) {
-        console.error(error);
-        throw new Error(error);
+        // Create or update the session and device collection along with counters.
+        await handleSessionLogic(payload);
+        await handleDeviceLogic(payload);
+    } catch (error) {
+        logError("Error writing event", error);
     }
-
-
-} catch (error) {
-    logError("Error writing event", error);
-}
 }
 
 export async function getEvents(projectId: string): Promise<EventPayload[]> {
     try {
-        const collection = (await getDatabase()).collection('events');
+        const collection = (await getDatabase()).collection("events");
         const events = await collection.find({ projectId }).toArray() as unknown as EventPayload[];
 
-
-
         return events;
-
     } catch (error) {
         console.error(error);
         throw new Error(error);
@@ -185,15 +335,14 @@ export async function getEvents(projectId: string): Promise<EventPayload[]> {
 
 export async function getProject(projectId: string): Promise<Project> {
     try {
-        const collection = (await getDatabase()).collection('projects');
+        const collection = (await getDatabase()).collection("projects");
         const idObject = new ObjectId(projectId);
         const project = await collection.findOne({ _id: idObject }) as unknown as Project;
-        project.id = projectId;
-
-
+        if (project) {
+            project.id = projectId;
+        }
 
         return project;
-
     } catch (error) {
         console.error(error);
         throw new Error(error);
@@ -202,18 +351,15 @@ export async function getProject(projectId: string): Promise<Project> {
 
 export async function getProjects(): Promise<Project[]> {
     try {
-        const collection = (await getDatabase()).collection('projects');
+        const collection = (await getDatabase()).collection("projects");
         const projects = await collection.find({}).toArray() as unknown as Project[];
 
-
-
-        projects.forEach(project => {
+        projects.forEach((project) => {
             const idObject = new ObjectId(project._id);
             project.id = idObject.toString();
         });
 
         return projects;
-
     } catch (error) {
         console.error(error);
         throw new Error(error);
@@ -222,13 +368,10 @@ export async function getProjects(): Promise<Project[]> {
 
 export async function insertProject(project: Project): Promise<string> {
     try {
-        const collection = (await getDatabase()).collection('projects');
+        const collection = (await getDatabase()).collection("projects");
         const projectReturned = await collection.insertOne(project);
 
-
-
         return projectReturned.insertedId.toString();
-
     } catch (error) {
         console.error(error);
         throw new Error(error);
@@ -237,10 +380,10 @@ export async function insertProject(project: Project): Promise<string> {
 
 export async function getProjectConfiguration(
     projectId: string,
-    origin: string,
+    //origin: string,
 ): Promise<false | Project> {
     const project = await getProject(projectId);
-    
+
     if (!project) {
         return false;
     }
@@ -256,4 +399,3 @@ export async function getProjectConfiguration(
 
     return configuration;
 }
-

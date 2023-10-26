@@ -9,12 +9,16 @@ export async function track(body: string, req: Request) {
     const project = await getProjectConfiguration(payload?.projectId, origin) as Project;
 
     if (project.id) {
+        payload.timestamp = Date.now();
+
         if (payload.type === "pageLoad" && project.options.pageLoads.storeUserAgent) {
             const userAgent = getUserAgent(req);
             payload.userAgent = userAgent.ua;
         }
 
-        insertEvent(payload);
+        // Store location data.
+
+        await insertEvent(payload);
 
         return 200;
     } else {

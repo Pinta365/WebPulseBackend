@@ -1,4 +1,4 @@
-import { getEvents, EventPayload, Project } from "./db.ts";
+import { EventPayload, getEvents, Project } from "./db.ts";
 
 function countEvents(entries: EventPayload[], startTime: number, endTime: number) {
     let pageLoads = 0;
@@ -35,7 +35,7 @@ export async function smallStats(project: Project) {
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000).getTime();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime();
-    
+
     const entries = await getEvents(project.id);
 
     // Count
