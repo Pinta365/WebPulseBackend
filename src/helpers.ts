@@ -1,5 +1,46 @@
 import { Request } from "../deps.ts";
 import { decodeTime, ulid, UserAgent } from "../deps.ts";
+import { IP2Location } from "../deps.ts";
+import { LocationData } from "./db.ts";
+
+let ip2location: IP2Location | null = null;
+
+export function getLocationDatabase(): IP2Location {
+    if (!ip2location) {
+        ip2location = new IP2Location();
+        ip2location.open("./bin/IP2LOCATION-LITE-DB1.IPV6.BIN");
+        console.log(`Location DB loaded. version: ${ip2location.getDatabaseVersion()}`);
+    }
+    return ip2location;
+}
+
+export function getCountryFromIP(req: Request): LocationData | null {
+    const ip = req.ip;
+    if (ip) {
+        try {
+            const db = getLocationDatabase();
+            const countryShort = db.getCountryShort(ip);
+            const countryLong = db.getCountryLong(ip);
+
+            if (countryLong === "-" || countryLong === "INVALID_IP_ADDRESS") {
+                // unresolvable or invalid
+                return null;
+            }
+
+            const result: LocationData = {
+                countryShort,
+                countryLong,
+            };
+
+            return result;
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
+    } else {
+        return null;
+    }
+}
 
 export function genULID(seedTime: number = Date.now()): string {
     return ulid(seedTime);
@@ -9,7 +50,7 @@ export function extractTimeFromULID(id: string): number {
     return decodeTime(id);
 }
 
-export function getUserAgent(req: Request) {
+export function getUserAgent(req: Request): UserAgent {
     const userAgent = new UserAgent(req.headers.get("user-agent") ?? "");
     return userAgent;
 }

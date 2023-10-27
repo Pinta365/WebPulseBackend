@@ -1,86 +1,102 @@
-import { Db, MongoClient, ObjectId } from "npm:mongodb";
+import { Db, MongoClient, ObjectId } from "../deps.ts";
 import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
-//import { semver } from "../deps.ts";
-//import { resolve } from "../deps.ts";
+import { semver } from "../deps.ts";
+import { resolve } from "../deps.ts";
 
-export interface ProjectOptions {
-    pageLoads: {
-        enabled: boolean;
-        storeUserAgent: boolean;
-    };
-    pageClicks: {
-        enabled: boolean;
-        capureAllClicks: boolean;
-    };
-    pageScrolls: {
-        enabled: boolean;
-    };
-}
+import type { Browser, Cpu, Device, Engine, Os } from "../deps.ts";
 
-export interface Project {
-    _id?: ObjectId; //skapas is DBn
-    id: string;
-    ownerId: string;
-    name: string;
-    description?: string;
-    allowedOrigins?: string[];
-    options: ProjectOptions;
-}
+export type { Db } from "../deps.ts";
+
+// Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
+const CURRENT_DATABASE_VERSION = "0.0.1";
+const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
 const mongoClient = new MongoClient(config.MongoUri!);
-let mongoDatebase: Db | null = null; //
+let mongoDatabase: Db | null = null; //
 
 export async function getDatabase(): Promise<Db> {
-    if (!mongoDatebase) {
+    if (!mongoDatabase) {
         await mongoClient.connect();
-        mongoDatebase = mongoClient.db("WebPulse");
+        mongoDatabase = mongoClient.db("WebPulse");
         console.log("Connected to MongoDB");
     }
-    //await checkMigrations();
-    return mongoDatebase;
+    await checkMigrations();
+    return mongoDatabase;
 }
+
 export async function disconnect(): Promise<void> {
     await mongoClient.close();
-    mongoDatebase = null;
+    mongoDatabase = null;
     console.log("MongoDB connection closed.");
 }
 
-/*
+export interface DbVersionDocument {
+    _id: ObjectId;
+    key: string;
+    value: string;
+}
 
-// Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
-const CURRENT_DATABASE_VERSION = "0.0.2";
-const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
+//Get current database version, default to CURRENT_DATABASE_VERSION
+async function getDatabaseVersion(): Promise<string> {
+    try {
+        if (!mongoDatabase) {
+            await mongoClient.connect();
+            mongoDatabase = mongoClient.db("WebPulse");
+            console.log("Connected to MongoDB");
+        }
+        const collection = mongoDatabase.collection("server_info");
+        const versionDoc = await collection.findOne({ key: "db_version" }) as DbVersionDocument;
 
+        if (!versionDoc) {
+            setDatabaseVersion(CURRENT_DATABASE_VERSION);
+            return CURRENT_DATABASE_VERSION;
+        }
 
+        return versionDoc.value;
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
+}
+
+export async function setDatabaseVersion(newVersion: string): Promise<boolean> {
+    try {
+        if (!mongoDatabase) {
+            await mongoClient.connect();
+            mongoDatabase = mongoClient.db("WebPulse");
+            console.log("Connected to MongoDB");
+        }
+
+        const collection = mongoDatabase.collection("server_info");
+
+        const result = await collection.updateOne(
+            { key: "db_version" },
+            { $set: { value: newVersion } },
+            { upsert: true },
+        );
+
+        return (result.modifiedCount > 0);
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
+}
 
 async function checkMigrations() {
-    if (database) {
-        const info: Deno.KvEntryMaybe<string> = await database.get(["db_version"]);
+    const versionString = await getDatabaseVersion();
 
-        // Get current database version, default to CURRENT_DATABASE_VERSION
-        let versionString = CURRENT_DATABASE_VERSION;
-        if (info.value === null) {
-            console.log(`Database version did not exist, initializing to '${versionString}'.`);
-            await database.set(["db_version"], versionString);
-        } else {
-            versionString = info.value as string;
-        }
+    // Compare application version with db version
+    const version = semver.parse(versionString);
 
-        // Compare application version with db version
-        const version = semver.parse(versionString);
-        if (version === null) {
-            throw new Error("Could not parse current database version.");
-        }
-        if (semver.lt(version, REQUIRED_DATABASE_VERSION)) {
-            console.log("Checking for migrations");
-            // New version, check for migrations and apply them in correct order
-            await applyMigrations(version);
-        }
+    if (version === null) {
+        throw new Error("Could not parse current database version.");
+    }
 
-        // All good!
-    } else {
-        throw new Error("This should not happen on database inititalization.");
+    if (semver.lt(version, REQUIRED_DATABASE_VERSION)) {
+        console.log("Checking for migrations");
+        // New version, check for migrations and apply them in correct order
+        await applyMigrations(version);
     }
 }
 
@@ -113,10 +129,33 @@ async function applyMigrations(currentVersion: semver.SemVer) {
         for (const change of migration.changeLog) {
             console.log(` - ${change}`);
         }
-        await migration.migration(database);
+        await migration.migration(mongoDatabase);
     }
 }
-*/
+
+export interface ProjectOptions {
+    pageLoads: {
+        enabled: boolean;
+        storeUserAgent: boolean;
+    };
+    pageClicks: {
+        enabled: boolean;
+        capureAllClicks: boolean;
+    };
+    pageScrolls: {
+        enabled: boolean;
+    };
+}
+
+export interface Project {
+    _id?: ObjectId; //skapas is DBn
+    id: string;
+    ownerId: string;
+    name: string;
+    description?: string;
+    allowedOrigins?: string[];
+    options: ProjectOptions;
+}
 
 export interface EventPayload {
     // Fixed types
@@ -126,14 +165,23 @@ export interface EventPayload {
     pageLoadId: string;
     deviceId: string;
     sessionId: string;
-    userAgent?: string;
+    userAgent?: UserAgentData;
+    location?: LocationData;
     // eventtype specific types.. should be typed at some point
-    [key: string]: string | number | undefined;
+    [key: string]: string | number | undefined | LocationData | UserAgentData;
 }
 
-interface LocationData {
-    country: string;
-    blah: string;
+interface UserAgentData {
+    browser: Browser;
+    cpu: Cpu;
+    device: Device;
+    engine: Engine;
+    os: Os;
+    ua: string;
+}
+export interface LocationData {
+    countryShort: string;
+    countryLong: string;
 }
 
 interface PageLoad {
@@ -149,12 +197,11 @@ interface PageLoad {
 interface SessionObject {
     projectId: string;
     sessionId: string;
-    pageLoadId: string;
     deviceId: string;
     timestamp: number;
     firstEventAt: number;
     lastEventAt: number;
-    userAgent?: string;
+    userAgent?: UserAgentData;
     location?: LocationData;
 
     loads: number;
@@ -244,7 +291,6 @@ async function handleSessionLogic(payload: EventPayload) {
         const sessionData: SessionObject = {
             projectId: payload.projectId,
             sessionId: payload.sessionId,
-            pageLoadId: payload.pageLoadId,
             deviceId: payload.deviceId,
             timestamp: payload.timestamp,
             firstEventAt: payload.timestamp,
@@ -256,8 +302,14 @@ async function handleSessionLogic(payload: EventPayload) {
         };
 
         if (payload.userAgent) {
-            sessionData.userAgent = payload.userAgent as string;
+            const { browser, cpu, device, engine, os, ua } = payload.userAgent;
+            sessionData.userAgent = { browser, cpu, device, engine, os, ua } as UserAgentData;
         }
+        if (payload.location) {
+            const location = payload.location as LocationData;
+            sessionData.location = location;
+        }
+
         await sessionCollection.insertOne(sessionData);
     }
 }
@@ -308,14 +360,15 @@ async function handleDeviceLogic(payload: EventPayload) {
 export async function insertEvent(payload: EventPayload) {
     try {
         const db = await getDatabase();
-
-        // Insert the "raw" event into the events collection
-        const collection = db.collection("events");
-        await collection.insertOne(payload);
-
         // Create or update the session and device collection along with counters.
         await handleSessionLogic(payload);
         await handleDeviceLogic(payload);
+
+        // Insert the "raw" event into the events collection after some cleaning.
+        delete payload.userAgent;
+        delete payload.location;
+        const collection = db.collection("events");
+        await collection.insertOne(payload);
     } catch (error) {
         logError("Error writing event", error);
     }
@@ -380,7 +433,7 @@ export async function insertProject(project: Project): Promise<string> {
 
 export async function getProjectConfiguration(
     projectId: string,
-    //origin: string,
+    origin: string,
 ): Promise<false | Project> {
     const project = await getProject(projectId);
 
@@ -389,13 +442,14 @@ export async function getProjectConfiguration(
     }
     const configuration: Project = project;
 
-    /*
-    const allowedOrigins = configuration.allowedOrigins
-        ? configuration.allowedOrigins : [];
+    const allowedOrigins = (configuration.allowedOrigins && configuration.allowedOrigins.length > 0)
+        ? configuration.allowedOrigins
+        : undefined;
 
-    if (config.serverMode === "production" && !allowedOrigins.includes(origin)) {
+    if (allowedOrigins && config.serverMode === "production" && !allowedOrigins.includes(origin)) {
+        console.log("debug: Origin not allowed.", allowedOrigins, "-", origin);
         return false;
-    }*/
+    }
 
     return configuration;
 }

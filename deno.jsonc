@@ -5,7 +5,8 @@
     },
     "fmt": {
         "lineWidth": 120,
-        "indentWidth": 4
+        "indentWidth": 4,
+        "exclude": ["./bin/*"]
     },
     "lint": {
         "exclude": ["./dev/*"]

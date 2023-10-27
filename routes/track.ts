@@ -1,6 +1,6 @@
 import { Request } from "../deps.ts";
 import { getProjectConfiguration, insertEvent, Project } from "../src/db.ts";
-import { getOrigin, getUserAgent } from "../src/helpers.ts";
+import { getCountryFromIP, getOrigin, getUserAgent } from "../src/helpers.ts";
 
 export async function track(body: string, req: Request) {
     const origin = getOrigin(req);
@@ -8,15 +8,22 @@ export async function track(body: string, req: Request) {
 
     const project = await getProjectConfiguration(payload?.projectId, origin) as Project;
 
-    if (project.id) {
+    if (project && project.id) {
         payload.timestamp = Date.now();
 
-        if (payload.type === "pageLoad" && project.options.pageLoads.storeUserAgent) {
+        if (project.options.pageLoads.storeUserAgent) {
             const userAgent = getUserAgent(req);
-            payload.userAgent = userAgent.ua;
+            payload.userAgent = userAgent;
         }
 
-        // Store location data.
+        //if (project.options.pageLoads.storeLocation) {
+        // Använder parametern för UA så länge.
+        if (project.options.pageLoads.storeUserAgent) {
+            const location = getCountryFromIP(req);
+            if (location) {
+                payload.location = location;
+            }
+        }
 
         await insertEvent(payload);
 
