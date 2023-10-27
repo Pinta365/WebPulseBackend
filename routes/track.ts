@@ -20,11 +20,13 @@ export async function track(body: string, req: Request) {
         // Använder parametern för UA så länge.
         if (project.options.pageLoads.storeUserAgent) {
             const location = getCountryFromIP(req);
+            console.log("location", location);
             if (location) {
                 payload.location = location;
             }
         }
 
+        console.log("pload", payload);
         await insertEvent(payload);
 
         return 200;
