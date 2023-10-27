@@ -22,7 +22,7 @@ export function getCountryFromIP(req: Request): LocationData | null {
             const db = getLocationDatabase();
             const countryShort = db.getCountryShort(ip);
             const countryLong = db.getCountryLong(ip);
-
+            console.log("countryLong", countryLong);
             if (countryLong === "-" || countryLong === "INVALID_IP_ADDRESS") {
                 // unresolvable or invalid
                 return null;
@@ -32,7 +32,7 @@ export function getCountryFromIP(req: Request): LocationData | null {
                 countryShort,
                 countryLong,
             };
-
+            console.log("result", result);
             return result;
         } catch (error) {
             console.error(error);
