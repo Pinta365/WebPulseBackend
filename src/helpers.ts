@@ -16,23 +16,22 @@ export function getLocationDatabase(): IP2Location {
 
 export function getCountryFromIP(req: Request): LocationData | null {
     const ip = req.ip;
-    console.log("1", ip);
     if (ip) {
         try {
             const db = getLocationDatabase();
             const countryShort = db.getCountryShort(ip);
             const countryLong = db.getCountryLong(ip);
-            console.log("countryLong", countryLong);
+            /*
             if (countryLong === "-" || countryLong === "INVALID_IP_ADDRESS") {
                 // unresolvable or invalid
                 return null;
             }
-
+            */
             const result: LocationData = {
+                debug: ip,
                 countryShort,
                 countryLong,
             };
-            console.log("result", result);
             return result;
         } catch (error) {
             console.error(error);

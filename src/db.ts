@@ -307,10 +307,8 @@ async function handleSessionLogic(payload: EventPayload) {
         }
         if (payload.location) {
             const location = payload.location as LocationData;
-            console.log("2", location);
             sessionData.location = location;
         }
-        console.log("1", sessionData);
         await sessionCollection.insertOne(sessionData);
     }
 }
