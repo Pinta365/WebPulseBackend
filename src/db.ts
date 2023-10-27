@@ -366,8 +366,8 @@ export async function insertEvent(payload: EventPayload) {
         await handleDeviceLogic(payload);
 
         // Insert the "raw" event into the events collection after some cleaning.
-        delete payload.userAgent;
-        delete payload.location;
+        //delete payload.userAgent;
+        //delete payload.location;
         const collection = db.collection("events");
         await collection.insertOne(payload);
     } catch (error) {
