@@ -16,6 +16,7 @@ export function getLocationDatabase(): IP2Location {
 
 export function getCountryFromIP(req: Request): LocationData | null {
     const ip = req.ip;
+    console.log("1", ip);
     if (ip) {
         try {
             const db = getLocationDatabase();
