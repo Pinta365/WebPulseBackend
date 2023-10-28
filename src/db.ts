@@ -1,52 +1,102 @@
+import { Db, MongoClient, ObjectId } from "../deps.ts";
 import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
 import { semver } from "../deps.ts";
 import { resolve } from "../deps.ts";
-import { genULID } from "./helpers.ts";
 
-let database: Deno.Kv | null = null; // Prevents the db from connecting when using other loggers.
+import type { Browser, Cpu, Device, Engine, Os } from "../deps.ts";
+
+export type { Db } from "../deps.ts";
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
-const CURRENT_DATABASE_VERSION = "0.0.2";
+const CURRENT_DATABASE_VERSION = "0.0.1";
 const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
-export async function getDatabase() {
-    // Ignore DENO_KV_LOCAL_DATABASE in production
-    const connectionString = config.serverMode !== "production"
-        ? Deno.env.get("DENO_KV_LOCAL_DATABASE") || undefined
-        : undefined;
-    database = await Deno.openKv(connectionString);
+const mongoClient = new MongoClient(config.MongoUri!);
+let mongoDatabase: Db | null = null; //
+
+export async function getDatabase(): Promise<Db> {
+    if (!mongoDatabase) {
+        await mongoClient.connect();
+        mongoDatabase = mongoClient.db("WebPulse");
+        console.log("Connected to MongoDB");
+    }
     await checkMigrations();
-    return database;
+    return mongoDatabase;
+}
+
+export async function disconnect(): Promise<void> {
+    await mongoClient.close();
+    mongoDatabase = null;
+    console.log("MongoDB connection closed.");
+}
+
+export interface DbVersionDocument {
+    _id: ObjectId;
+    key: string;
+    value: string;
+}
+
+//Get current database version, default to CURRENT_DATABASE_VERSION
+async function getDatabaseVersion(): Promise<string> {
+    try {
+        if (!mongoDatabase) {
+            await mongoClient.connect();
+            mongoDatabase = mongoClient.db("WebPulse");
+            console.log("Connected to MongoDB");
+        }
+        const collection = mongoDatabase.collection("server_info");
+        const versionDoc = await collection.findOne({ key: "db_version" }) as DbVersionDocument;
+
+        if (!versionDoc) {
+            setDatabaseVersion(CURRENT_DATABASE_VERSION);
+            return CURRENT_DATABASE_VERSION;
+        }
+
+        return versionDoc.value;
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
+}
+
+export async function setDatabaseVersion(newVersion: string): Promise<boolean> {
+    try {
+        if (!mongoDatabase) {
+            await mongoClient.connect();
+            mongoDatabase = mongoClient.db("WebPulse");
+            console.log("Connected to MongoDB");
+        }
+
+        const collection = mongoDatabase.collection("server_info");
+
+        const result = await collection.updateOne(
+            { key: "db_version" },
+            { $set: { value: newVersion } },
+            { upsert: true },
+        );
+
+        return (result.modifiedCount > 0);
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
 }
 
 async function checkMigrations() {
-    if (database) {
-        const info: Deno.KvEntryMaybe<string> = await database.get(["db_version"]);
+    const versionString = await getDatabaseVersion();
 
-        // Get current database version, default to CURRENT_DATABASE_VERSION
-        let versionString = CURRENT_DATABASE_VERSION;
-        if (info.value === null) {
-            console.log(`Database version did not exist, initializing to '${versionString}'.`);
-            await database.set(["db_version"], versionString);
-        } else {
-            versionString = info.value as string;
-        }
+    // Compare application version with db version
+    const version = semver.parse(versionString);
 
-        // Compare application version with db version
-        const version = semver.parse(versionString);
-        if (version === null) {
-            throw new Error("Could not parse current database version.");
-        }
-        if (semver.lt(version, REQUIRED_DATABASE_VERSION)) {
-            console.log("Checking for migrations");
-            // New version, check for migrations and apply them in correct order
-            await applyMigrations(version);
-        }
+    if (version === null) {
+        throw new Error("Could not parse current database version.");
+    }
 
-        // All good!
-    } else {
-        throw new Error("This should not happen on database inititalization.");
+    if (semver.lt(version, REQUIRED_DATABASE_VERSION)) {
+        console.log("Checking for migrations");
+        // New version, check for migrations and apply them in correct order
+        await applyMigrations(version);
     }
 }
 
@@ -79,7 +129,7 @@ async function applyMigrations(currentVersion: semver.SemVer) {
         for (const change of migration.changeLog) {
             console.log(` - ${change}`);
         }
-        await migration.migration(database);
+        await migration.migration(mongoDatabase);
     }
 }
 
@@ -98,6 +148,7 @@ export interface ProjectOptions {
 }
 
 export interface Project {
+    _id?: ObjectId; //skapas is DBn
     id: string;
     ownerId: string;
     name: string;
@@ -106,123 +157,276 @@ export interface Project {
     options: ProjectOptions;
 }
 
-export interface LoggerData {
+export interface EventPayload {
     // Fixed types
     timestamp: number;
     projectId: string;
     type: string;
     pageLoadId: string;
+    deviceId: string;
     sessionId: string;
-    payloadId: string;
+    userAgent?: UserAgentData;
+    location?: LocationData;
     // eventtype specific types.. should be typed at some point
-    [key: string]: string | number | undefined;
+    [key: string]: string | number | undefined | LocationData | UserAgentData;
 }
 
-async function writeIndexes(payload: LoggerData) {
-    if (!database) {
-        database = await getDatabase();
-    }
-
-    await database.set([payload.projectId, payload.timestamp, payload.type], payload);
-
-    // Added in db version 0.0.2
-    await database.set([payload.projectId, payload.type, payload.timestamp], payload);
-
-    //await database.set([payload.payloadId as string], payload);
-    if (payload.type === "pageSession" || payload.type === "pageLoad") {
-        await database.set([payload.payloadId as string], payload);
-    }
+interface UserAgentData {
+    browser: Browser;
+    cpu: Cpu;
+    device: Device;
+    engine: Engine;
+    os: Os;
+    ua: string;
+}
+export interface LocationData {
+    countryShort: string;
+    countryLong: string;
 }
 
-async function writeOrUpdateSession(payload: LoggerData) {
-    const sessionEvent = await getEventById(payload.sessionId);
+interface PageLoad {
+    pageLoadId: string;
+    timestamp: number;
+    firstEventAt: number;
+    lastEventAt: number;
 
-    if (sessionEvent && sessionEvent.type === "pageSession") {
-        sessionEvent.lastEventAt = payload.timestamp;
-        await writeIndexes(sessionEvent);
+    clicks: number;
+    scrolls: number;
+}
+
+interface SessionObject {
+    projectId: string;
+    sessionId: string;
+    deviceId: string;
+    timestamp: number;
+    firstEventAt: number;
+    lastEventAt: number;
+    userAgent?: UserAgentData;
+    location?: LocationData;
+
+    loads: number;
+    clicks: number;
+    scrolls: number;
+
+    pageLoads: PageLoad[];
+}
+
+interface DeviceObject {
+    projectId: string;
+    deviceId: string;
+    firstEventAt: number;
+    lastEventAt: number;
+    sessionIds: string[];
+
+    sessions: number;
+    loads: number;
+    clicks: number;
+    scrolls: number;
+}
+
+type IncrementData = {
+    "pageLoads.$.clicks"?: number;
+    "pageLoads.$.scrolls"?: number;
+};
+
+async function handleSessionLogic(payload: EventPayload) {
+    const db = await getDatabase();
+    const sessionCollection = db.collection("sessions");
+
+    const session = await sessionCollection.findOne({ sessionId: payload.sessionId }) as SessionObject | null;
+
+    const isClickEvent = payload.type === "pageClick";
+    const isScrollEvent = payload.type === "pageScroll";
+    const isLoadEvent = payload.type === "pageLoad";
+
+    const newPageLoad = {
+        pageLoadId: payload.pageLoadId,
+        url: payload.url,
+        title: payload.title,
+        referer: payload.referrer,
+        timestamp: payload.timestamp,
+        firstEventAt: payload.timestamp,
+        lastEventAt: payload.timestamp,
+        clicks: isClickEvent ? 1 : 0,
+        scrolls: isScrollEvent ? 1 : 0,
+    };
+
+    if (session) {
+        const existingPageLoad = session.pageLoads.find((pageLoad) => pageLoad.pageLoadId === payload.pageLoadId);
+
+        if (existingPageLoad) {
+            const incrementData: IncrementData = {};
+
+            if (isClickEvent) {
+                incrementData["pageLoads.$.clicks"] = 1;
+                session.clicks += 1;
+            }
+
+            if (isScrollEvent) {
+                incrementData["pageLoads.$.scrolls"] = 1;
+                session.scrolls += 1;
+            }
+
+            await sessionCollection.updateOne(
+                { sessionId: payload.sessionId, "pageLoads.pageLoadId": payload.pageLoadId },
+                {
+                    $inc: incrementData,
+                    $set: { "pageLoads.$.lastEventAt": payload.timestamp },
+                },
+            );
+        } else {
+            session.loads += 1;
+            await sessionCollection.updateOne({ sessionId: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
+        }
+
+        await sessionCollection.updateOne({ sessionId: payload.sessionId }, {
+            $set: {
+                lastEventAt: payload.timestamp,
+                clicks: session.clicks,
+                scrolls: session.scrolls,
+                loads: session.loads,
+            },
+        });
     } else {
-        const sessionData: LoggerData = {
-            type: "pageSession",
+        const sessionData: SessionObject = {
             projectId: payload.projectId,
             sessionId: payload.sessionId,
-            pageLoadId: payload.pageLoadId,
-            payloadId: payload.sessionId,
+            deviceId: payload.deviceId,
             timestamp: payload.timestamp,
             firstEventAt: payload.timestamp,
             lastEventAt: payload.timestamp,
-            // lite okalrt vad jag ska spara på session..
+            loads: isLoadEvent ? 1 : 0,
+            clicks: isClickEvent ? 1 : 0,
+            scrolls: isScrollEvent ? 1 : 0,
+            pageLoads: [newPageLoad],
         };
 
         if (payload.userAgent) {
-            sessionData.userAgent = payload.userAgent;
+            const { browser, cpu, device, engine, os, ua } = payload.userAgent;
+            sessionData.userAgent = { browser, cpu, device, engine, os, ua } as UserAgentData;
         }
-        await writeIndexes(sessionData);
+        if (payload.location) {
+            const location = payload.location as LocationData;
+            sessionData.location = location;
+        }
+        await sessionCollection.insertOne(sessionData);
     }
 }
 
-async function writeOrUpdatePageLoad(payload: LoggerData) {
-    const pageLoadEvent = await getEventById(payload.pageLoadId);
-    if (pageLoadEvent && pageLoadEvent.type === "pageLoad") {
-        pageLoadEvent.lastEventAt = payload.timestamp;
-        await writeIndexes(pageLoadEvent);
+async function handleDeviceLogic(payload: EventPayload) {
+    const db = await getDatabase();
+    const deviceCollection = db.collection("devices");
+
+    const device = await deviceCollection.findOne({ deviceId: payload.deviceId }) as DeviceObject | null;
+
+    const isClickEvent = payload.type === "pageClick";
+    const isScrollEvent = payload.type === "pageScroll";
+    const isLoadEvent = payload.type === "pageLoad";
+
+    if (device) {
+        const incrementData = {
+            sessions: !device.sessionIds.includes(payload.sessionId) ? 1 : 0,
+            loads: isLoadEvent ? 1 : 0,
+            clicks: isClickEvent ? 1 : 0,
+            scrolls: isScrollEvent ? 1 : 0,
+        };
+
+        await deviceCollection.updateOne(
+            { deviceId: payload.deviceId },
+            {
+                $addToSet: { sessionIds: payload.sessionId },
+                $set: { lastEventAt: payload.timestamp },
+                $inc: incrementData,
+            },
+        );
     } else {
-        payload.payloadId = payload.pageLoadId;
-        await writeIndexes(payload);
+        // Create new device entry
+        const newDevice: DeviceObject = {
+            projectId: payload.projectId,
+            deviceId: payload.deviceId,
+            firstEventAt: payload.timestamp,
+            lastEventAt: payload.timestamp,
+            sessionIds: [payload.sessionId],
+            sessions: 1,
+            loads: isLoadEvent ? 1 : 0,
+            clicks: isClickEvent ? 1 : 0,
+            scrolls: isScrollEvent ? 1 : 0,
+        };
+        await deviceCollection.insertOne(newDevice);
     }
 }
 
-export async function insertEvent(payload: LoggerData) {
+export async function insertEvent(payload: EventPayload) {
     try {
-        if (!database) {
-            database = await getDatabase();
-        }
+        const db = await getDatabase();
+        // Create or update the session and device collection along with counters.
+        await handleSessionLogic(payload);
+        await handleDeviceLogic(payload);
 
-        // Unikt id för varje event
-        payload.payloadId = genULID();
-
-        // Uppdatera loads och sessions med lastEventAt
-        await writeOrUpdatePageLoad(payload);
-        await writeOrUpdateSession(payload);
-
-        // skjut in vanliga payloaden.. hmm om den alltid ska skrivas
-        await writeIndexes(payload);
+        // Insert the "raw" event into the events collection after some cleaning.
+        //delete payload.userAgent;
+        //delete payload.location;
+        const collection = db.collection("events");
+        await collection.insertOne(payload);
     } catch (error) {
         logError("Error writing event", error);
     }
 }
 
-export async function getEventById(id: string): Promise<LoggerData> {
-    if (!database) {
-        database = await getDatabase();
-    }
+export async function getEvents(projectId: string): Promise<EventPayload[]> {
+    try {
+        const collection = (await getDatabase()).collection("events");
+        const events = await collection.find({ projectId }).toArray() as unknown as EventPayload[];
 
-    const project = await database.get([id]);
-    return project.value as LoggerData;
+        return events;
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
+}
+
+export async function getProject(projectId: string): Promise<Project> {
+    try {
+        const collection = (await getDatabase()).collection("projects");
+        const idObject = new ObjectId(projectId);
+        const project = await collection.findOne({ _id: idObject }) as unknown as Project;
+        if (project) {
+            project.id = projectId;
+        }
+
+        return project;
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
 }
 
 export async function getProjects(): Promise<Project[]> {
-    if (!database) {
-        database = await getDatabase();
-    }
-    const projectList = database.list({ prefix: ["projects"] });
-    const projects: Project[] = [];
-    for await (const project of projectList) {
-        projects.push(project.value as Project);
-    }
+    try {
+        const collection = (await getDatabase()).collection("projects");
+        const projects = await collection.find({}).toArray() as unknown as Project[];
 
-    return projects;
+        projects.forEach((project) => {
+            const idObject = new ObjectId(project._id);
+            project.id = idObject.toString();
+        });
+
+        return projects;
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
 }
 
-export async function insertProject(project: Project): Promise<boolean> {
+export async function insertProject(project: Project): Promise<string> {
     try {
-        if (!database) {
-            database = await getDatabase();
-        }
-        await database.set(["projects", project.id], project);
-        return true;
+        const collection = (await getDatabase()).collection("projects");
+        const projectReturned = await collection.insertOne(project);
+
+        return projectReturned.insertedId.toString();
     } catch (error) {
-        logError("Error writing project", error);
-        return false;
+        console.error(error);
+        throw new Error(error);
     }
 }
 
@@ -230,19 +434,21 @@ export async function getProjectConfiguration(
     projectId: string,
     origin: string,
 ): Promise<false | Project> {
-    const project = (await getProjects()).find((item) => item.id === projectId);
+    const project = await getProject(projectId);
+
     if (!project) {
         return false;
     }
     const configuration: Project = project;
 
-    /*
-    const allowedOrigins = configuration.allowedOrigins
-        ? configuration.allowedOrigins : [];
+    const allowedOrigins = (configuration.allowedOrigins && configuration.allowedOrigins.length > 0)
+        ? configuration.allowedOrigins
+        : undefined;
 
-    if (config.serverMode === "production" && !allowedOrigins.includes(origin)) {
+    if (allowedOrigins && config.serverMode === "production" && !allowedOrigins.includes(origin)) {
+        console.log("debug: Origin not allowed.", allowedOrigins, "-", origin);
         return false;
-    }*/
+    }
 
     return configuration;
 }

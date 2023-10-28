@@ -2,14 +2,21 @@ import "https://deno.land/std@0.203.0/dotenv/load.ts";
 import router from "./routes/routes.ts";
 import { config } from "./src/config.ts";
 import { getDatabase } from "./src/db.ts";
+import { getLocationDatabase } from "./src/helpers.ts";
 import { Application } from "./deps.ts";
+import { initSchedule } from "./src/scheduler.ts";
 
 // Temporary debugging log.
 console.log("debug >>", config);
 
-// Preload DB
+// Preload
 try {
+    // Mongo
     await getDatabase();
+    // Location DB
+    getLocationDatabase();
+    // Scheduler
+    initSchedule();
 } catch (e) {
     throw new Error(e);
 }

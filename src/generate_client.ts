@@ -4,7 +4,10 @@
 import { Project } from "./db.ts";
 import { config } from "./config.ts";
 
-export function generateScript(project: Project, pageLoadId: string, origin: string): string | false {
+export function generateScript(
+    project: Project,
+    pageLoadId: string,
+): string | false {
     if (!project) {
         return false;
     }
@@ -43,8 +46,6 @@ export function generateScript(project: Project, pageLoadId: string, origin: str
             return sessionObj;
         }
 
-        const pageLoadDate = Date.now();
-
         const deviceId = localStorage.getItem("deviceId") || generateUUID();
         localStorage.setItem("deviceId", deviceId);
 
@@ -58,15 +59,12 @@ export function generateScript(project: Project, pageLoadId: string, origin: str
         optionalBlock += `reportBack({
             type: "pageLoad",
             projectId,
-            pageLoadId: "${pageLoadId}",
             deviceId,
             sessionId: sessionObj.uuid,
+            pageLoadId: "${pageLoadId}",
             referrer: document.referrer,
             title: document.title,
-            url: window.location.href,
-            timestamp: pageLoadDate,
-            firstEventAt: pageLoadDate,
-            lastEventAt: pageLoadDate,
+            url: window.location.href
         });`;
     }
 
@@ -85,8 +83,7 @@ export function generateScript(project: Project, pageLoadId: string, origin: str
                 targetHref: e.target.href,
                 targetClass: e.target.classList.value,
                 x: e.clientX,
-                y: e.clientY,
-                timestamp: Date.now(),
+                y: e.clientY
             });
         }, { passive: true });`;
     }
@@ -122,8 +119,7 @@ export function generateScript(project: Project, pageLoadId: string, origin: str
                             deviceId,
                             sessionId: sessionObj.uuid,
                             url: window.location.href,
-                            depth: percent,
-                            timestamp: Date.now(),
+                            depth: percent
                         });
                         alreadyTracked.push(percent);
                     }
