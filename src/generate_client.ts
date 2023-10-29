@@ -21,11 +21,16 @@ export function generateScript(
             navigator.sendBeacon(url + "/track", payload);
         }
         
+        let baseIncrement = Math.floor(Math.random() * 0xFFFFFF);
+
         function genId() {
-            var E = '0123456789ABCDEFGHJKMNPQRSTVWXYZ', n = Date.now(), t = '', r = '';    
-            for (var i = 0; i < 10; i++, n = Math.floor(n / E.length)) t = E[n % E.length] + t;
-            for (var j = 0; j < 16; j++) r += E[Math.random() * E.length | 0];
-            return t + r;
+            const timestamp = Math.floor(Date.now() / 1000).toString(16);
+            const randomValue = Math.floor(Math.random() * 0x10000000000)
+                .toString(16)
+                .padStart(10, '0');
+            baseIncrement = (baseIncrement + 1) % 0xFFFFFF;
+            const counterStr = baseIncrement.toString(16).padStart(6, '0');
+            return timestamp + randomValue + counterStr;
         }
 
         function checkAndRenewSession(sessionObj) {
@@ -45,7 +50,7 @@ export function generateScript(
 
         const deviceId = localStorage.getItem("deviceId") || genId();
         localStorage.setItem("deviceId", deviceId);
-
+        
         let sessionObj = checkAndRenewSession(JSON.parse(sessionStorage.getItem("sessionObj")));
     `;
     const endBlock = "} initTracking('" + project.id + "', '" +

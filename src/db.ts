@@ -161,15 +161,15 @@ export interface Project {
 export interface EventPayload {
     // Fixed types
     timestamp: number;
-    projectId: string;
+    projectId: ObjectId;
     type: string;
-    pageLoadId: string;
-    deviceId: string;
-    sessionId: string;
+    pageLoadId: ObjectId;
+    deviceId: ObjectId;
+    sessionId: ObjectId;
     userAgent?: UserAgentData;
     location?: LocationData;
     // eventtype specific types.. should be typed at some point
-    [key: string]: string | number | undefined | LocationData | UserAgentData;
+    [key: string]: string | number | undefined | ObjectId | LocationData | UserAgentData;
 }
 
 interface UserAgentData {
@@ -186,7 +186,7 @@ export interface LocationData {
 }
 
 interface PageLoad {
-    pageLoadId: string;
+    pageLoadId: ObjectId;
     timestamp: number;
     firstEventAt: number;
     lastEventAt: number;
@@ -196,9 +196,9 @@ interface PageLoad {
 }
 
 interface SessionObject {
-    projectId: string;
-    sessionId: string;
-    deviceId: string;
+    _id: ObjectId;
+    projectId: ObjectId;
+    deviceId: ObjectId;
     timestamp: number;
     firstEventAt: number;
     lastEventAt: number;
@@ -213,11 +213,11 @@ interface SessionObject {
 }
 
 interface DeviceObject {
-    projectId: string;
-    deviceId: string;
+    _id: ObjectId;
+    projectId: ObjectId;
     firstEventAt: number;
     lastEventAt: number;
-    sessionIds: string[];
+    sessionIds: ObjectId[];
 
     sessions: number;
     loads: number;
@@ -234,7 +234,7 @@ async function handleSessionLogic(payload: EventPayload) {
     const db = await getDatabase();
     const sessionCollection = db.collection("sessions");
 
-    const session = await sessionCollection.findOne({ sessionId: payload.sessionId }) as SessionObject | null;
+    const session = await sessionCollection.findOne({ _id: payload.sessionId }) as SessionObject | null;
 
     const isClickEvent = payload.type === "pageClick";
     const isScrollEvent = payload.type === "pageScroll";
@@ -253,7 +253,7 @@ async function handleSessionLogic(payload: EventPayload) {
     };
 
     if (session) {
-        const existingPageLoad = session.pageLoads.find((pageLoad) => pageLoad.pageLoadId === payload.pageLoadId);
+        const existingPageLoad = session.pageLoads.find((pageLoad) => pageLoad.pageLoadId.toString() === payload.pageLoadId.toString());
 
         if (existingPageLoad) {
             const incrementData: IncrementData = {};
@@ -269,7 +269,7 @@ async function handleSessionLogic(payload: EventPayload) {
             }
 
             await sessionCollection.updateOne(
-                { sessionId: payload.sessionId, "pageLoads.pageLoadId": payload.pageLoadId },
+                { _id: payload.sessionId, "pageLoads.pageLoadId": payload.pageLoadId },
                 {
                     $inc: incrementData,
                     $set: { "pageLoads.$.lastEventAt": payload.timestamp },
@@ -277,10 +277,10 @@ async function handleSessionLogic(payload: EventPayload) {
             );
         } else {
             session.loads += 1;
-            await sessionCollection.updateOne({ sessionId: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
+            await sessionCollection.updateOne({ _id: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
         }
 
-        await sessionCollection.updateOne({ sessionId: payload.sessionId }, {
+        await sessionCollection.updateOne({ _id: payload.sessionId }, {
             $set: {
                 lastEventAt: payload.timestamp,
                 clicks: session.clicks,
@@ -290,8 +290,8 @@ async function handleSessionLogic(payload: EventPayload) {
         });
     } else {
         const sessionData: SessionObject = {
+            _id: payload.sessionId,
             projectId: payload.projectId,
-            sessionId: payload.sessionId,
             deviceId: payload.deviceId,
             timestamp: payload.timestamp,
             firstEventAt: payload.timestamp,
@@ -318,22 +318,23 @@ async function handleDeviceLogic(payload: EventPayload) {
     const db = await getDatabase();
     const deviceCollection = db.collection("devices");
 
-    const device = await deviceCollection.findOne({ deviceId: payload.deviceId }) as DeviceObject | null;
+    const device = await deviceCollection.findOne({ _id: payload.deviceId }) as DeviceObject | null;
 
     const isClickEvent = payload.type === "pageClick";
     const isScrollEvent = payload.type === "pageScroll";
     const isLoadEvent = payload.type === "pageLoad";
 
     if (device) {
+        const isExistingSession = device.sessionIds.find((sess) => sess.toString() === payload.sessionId.toString());
         const incrementData = {
-            sessions: !device.sessionIds.includes(payload.sessionId) ? 1 : 0,
+            sessions: isExistingSession ? 0 : 1,
             loads: isLoadEvent ? 1 : 0,
             clicks: isClickEvent ? 1 : 0,
             scrolls: isScrollEvent ? 1 : 0,
         };
 
         await deviceCollection.updateOne(
-            { deviceId: payload.deviceId },
+            { _id: payload.deviceId },
             {
                 $addToSet: { sessionIds: payload.sessionId },
                 $set: { lastEventAt: payload.timestamp },
@@ -343,8 +344,8 @@ async function handleDeviceLogic(payload: EventPayload) {
     } else {
         // Create new device entry
         const newDevice: DeviceObject = {
+            _id: payload.deviceId,
             projectId: payload.projectId,
-            deviceId: payload.deviceId,
             firstEventAt: payload.timestamp,
             lastEventAt: payload.timestamp,
             sessionIds: [payload.sessionId],
@@ -360,6 +361,12 @@ async function handleDeviceLogic(payload: EventPayload) {
 export async function insertEvent(payload: EventPayload) {
     try {
         const db = await getDatabase();
+
+        payload.pageLoadId = new ObjectId(payload.pageLoadId);
+        payload.sessionId = new ObjectId(payload.sessionId);
+        payload.deviceId = new ObjectId(payload.deviceId);
+        payload.projectId = new ObjectId(payload.projectId);
+
         // Create or update the session and device collection along with counters.
         await handleSessionLogic(payload);
         await handleDeviceLogic(payload);
