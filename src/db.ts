@@ -6,6 +6,7 @@ import { resolve } from "../deps.ts";
 
 import type { Browser, Cpu, Device, Engine, Os } from "../deps.ts";
 
+export { ObjectId } from "../deps.ts";
 export type { Db } from "../deps.ts";
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
@@ -385,7 +386,7 @@ export async function getEvents(projectId: string): Promise<EventPayload[]> {
     }
 }
 
-export async function getProject(projectId: string): Promise<Project> {
+export async function getProject(projectId: string): Promise<Project|null> {
     try {
         const collection = (await getDatabase()).collection("projects");
         const idObject = new ObjectId(projectId);
@@ -397,11 +398,11 @@ export async function getProject(projectId: string): Promise<Project> {
         return project;
     } catch (error) {
         console.error(error);
-        throw new Error(error);
+        return null;
     }
 }
 
-export async function getProjects(): Promise<Project[]> {
+export async function getProjects(): Promise<Project[]|null> {
     try {
         const collection = (await getDatabase()).collection("projects");
         const projects = await collection.find({}).toArray() as unknown as Project[];
@@ -414,7 +415,7 @@ export async function getProjects(): Promise<Project[]> {
         return projects;
     } catch (error) {
         console.error(error);
-        throw new Error(error);
+        return null;
     }
 }
 

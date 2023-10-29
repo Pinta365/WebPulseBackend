@@ -21,14 +21,11 @@ export function generateScript(
             navigator.sendBeacon(url + "/track", payload);
         }
         
-        function generateUUID() {
-            if (self.crypto && typeof self.crypto.randomUUID === "function") {
-                return self.crypto.randomUUID();
-            }
-
-            return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, function (c) {
-                return (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16);
-            });
+        function genId() {
+            var E = '0123456789ABCDEFGHJKMNPQRSTVWXYZ', n = Date.now(), t = '', r = '';    
+            for (var i = 0; i < 10; i++, n = Math.floor(n / E.length)) t = E[n % E.length] + t;
+            for (var j = 0; j < 16; j++) r += E[Math.random() * E.length | 0];
+            return t + r;
         }
 
         function checkAndRenewSession(sessionObj) {
@@ -36,7 +33,7 @@ export function generateScript(
             if (!sessionObj || (currentTime - sessionObj.lastActivity) > 10 * 60 * 1000) {
                 // Create a new session object
                 sessionObj = {
-                    uuid: generateUUID(),
+                    id: genId(),
                     lastActivity: currentTime
                 };
             } else {
@@ -46,7 +43,7 @@ export function generateScript(
             return sessionObj;
         }
 
-        const deviceId = localStorage.getItem("deviceId") || generateUUID();
+        const deviceId = localStorage.getItem("deviceId") || genId();
         localStorage.setItem("deviceId", deviceId);
 
         let sessionObj = checkAndRenewSession(JSON.parse(sessionStorage.getItem("sessionObj")));
@@ -60,12 +57,38 @@ export function generateScript(
             type: "pageLoad",
             projectId,
             deviceId,
-            sessionId: sessionObj.uuid,
+            sessionId: sessionObj.id,
             pageLoadId: "${pageLoadId}",
             referrer: document.referrer,
             title: document.title,
             url: window.location.href
         });`;
+    }
+
+    // Den här borde ha ett eget option. Men får ligga på PageLoad flaggan nu
+    // Borde vara "ett option för att förbätra upplösningen på lastEventAt"
+    //
+    // Byter session id EFTER hemrapportering för att hidden eventen ska kopplas mot föregående session.. (?) :)
+    //
+    // Fick slänga in en "previous state" checker för visibilityState === hidden kunde trigga 3 ggr vid tab change.. lite konstigt?
+    if (project?.options?.pageLoads.enabled) {
+        optionalBlock += `let prevVisibilityState = document.visibilityState;
+        document.addEventListener("visibilitychange", function (e) {            
+            if (document.visibilityState === "hidden" && prevVisibilityState !== "hidden") {
+                reportBack({
+                    type: "pageHide",
+                    projectId,
+                    deviceId,
+                    sessionId: sessionObj.id,
+                    pageLoadId: "${pageLoadId}",
+                    title: document.title,
+                    url: window.location.href
+                });
+              }
+              sessionObj = checkAndRenewSession(sessionObj);
+              prevVisibilityState = document.visibilityState;
+        });
+        `;
     }
 
     if (project?.options?.pageClicks.enabled) {
@@ -76,7 +99,7 @@ export function generateScript(
                 projectId,
                 pageLoadId: "${pageLoadId}",
                 deviceId,
-                sessionId: sessionObj.uuid,
+                sessionId: sessionObj.id,
                 url: window.location.href,
                 targetTag: e.target.tagName,
                 targetId: e.target.id,
@@ -85,11 +108,11 @@ export function generateScript(
                 x: e.clientX,
                 y: e.clientY
             });
-        }, { passive: true });`;
+        });`;
     }
 
     if (project?.options?.pageScrolls.enabled) {
-        optionalBlock += `sessionObj = checkAndRenewSession(sessionObj);
+        optionalBlock += `;
         const trackedPercentages = [25, 50, 75, 100];
         const alreadyTracked = [];
     
@@ -106,6 +129,7 @@ export function generateScript(
         document.addEventListener(
             "scroll",
             throttle(function () {
+                sessionObj = checkAndRenewSession(sessionObj);
                 const pageHeight = document.documentElement.scrollHeight - window.innerHeight;
                 const scrollPosition = window.scrollY;
                 const scrollPercentage = (scrollPosition / pageHeight) * 100;
@@ -117,7 +141,7 @@ export function generateScript(
                             projectId,
                             pageLoadId: "${pageLoadId}",
                             deviceId,
-                            sessionId: sessionObj.uuid,
+                            sessionId: sessionObj.id,
                             url: window.location.href,
                             depth: percent
                         });
