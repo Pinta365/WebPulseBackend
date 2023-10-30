@@ -1,5 +1,5 @@
 import { Request } from "../deps.ts";
-import { getProjectConfiguration, insertEvent, Project } from "../src/db.ts";
+import { getProjectConfiguration, insertEvent, Project, UserAgentData } from "../src/db.ts";
 import { getCountryFromIP, getOrigin, getUserAgent } from "../src/helpers.ts";
 
 export async function track(body: string, req: Request) {
@@ -13,12 +13,12 @@ export async function track(body: string, req: Request) {
 
         if (project.options.pageLoads.storeUserAgent) {
             const userAgent = getUserAgent(req);
-            payload.userAgent = userAgent;
+            const { browser, cpu, device, engine, os, ua } = userAgent;
+            payload.userAgent = { browser, cpu, device, engine, os, ua } as UserAgentData;
         }
 
         //if (project.options.pageLoads.storeLocation) {
         // Använder parametern för UA så länge.
-        
         if (project.options.pageLoads.storeUserAgent) {
             const location = await getCountryFromIP(req);
             if (location) {

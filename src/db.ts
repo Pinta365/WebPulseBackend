@@ -172,7 +172,7 @@ export interface EventPayload {
     [key: string]: string | number | undefined | ObjectId | LocationData | UserAgentData;
 }
 
-interface UserAgentData {
+export interface UserAgentData {
     browser: Browser;
     cpu: Cpu;
     device: Device;
@@ -303,12 +303,10 @@ async function handleSessionLogic(payload: EventPayload) {
         };
 
         if (payload.userAgent) {
-            const { browser, cpu, device, engine, os, ua } = payload.userAgent;
-            sessionData.userAgent = { browser, cpu, device, engine, os, ua } as UserAgentData;
+            sessionData.userAgent = payload.userAgent;
         }
         if (payload.location) {
-            const location = payload.location as LocationData;
-            sessionData.location = location;
+            sessionData.location = payload.location;
         }
         await sessionCollection.insertOne(sessionData);
     }
