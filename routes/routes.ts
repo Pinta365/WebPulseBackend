@@ -4,7 +4,6 @@ const router = new Router();
 import { getClient } from "./get_client.ts";
 import { track } from "./track.ts";
 import { root } from "./root.ts";
-import { getSmallStats } from "./smallstats.ts";
 
 router.post("/track", async (ctx: Context) => {
     const data = await ctx.request.body().value;
@@ -25,11 +24,6 @@ router.get("/client/:projectId", async (ctx: Context) => {
         ctx.response.body = null;
         ctx.response.status = 403;
     }
-});
-
-router.get("/smallstats", async (ctx: Context) => {
-    const stats = await getSmallStats();
-    ctx.response.body = stats;
 });
 
 router.get("/", (ctx: Context) => {
