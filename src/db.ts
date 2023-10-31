@@ -374,7 +374,10 @@ export async function insertEvent(payload: EventPayload) {
         payload.deviceId = new ObjectId(payload.deviceId);
         payload.projectId = new ObjectId(payload.projectId);
 
-        // Create or update the session and device collection along with counters.
+        if(payload.projectId.toString() === "653d68c753423fd4499d5014") {
+            console.log(payload);
+        }
+        // Create or update the session and device collection a long with counters.
         await handleSessionLogic(payload);
         await handleDeviceLogic(payload);
 
