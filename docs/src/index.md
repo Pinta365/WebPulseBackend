@@ -18,8 +18,7 @@ This documentation serves as your gateway to setting up your own instance or con
 - **Privacy-Focused:** We prioritize user privacy by enabling you to collect and analyze data without compromising
   sensitive information.
 - **Customizable:** Tailor WebPulse to your specific requirements, thanks to its flexibility and open architecture.
-- **Free to Use:** WebPulse is free to use and is showcased at webpulseanalytics.com: https://webpulseanalytics.com
-  through simple GitHub authentication.
+- **Free to Use:** WebPulse is free to use and is showcased at [webpulseanalytics.com](https://webpulseanalytics.com) through simple GitHub authentication.
 
 ## How WebPulse Analytics Works
 

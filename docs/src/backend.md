@@ -5,10 +5,12 @@ nav_order: 2
 
 # Setting up the back-end for WebPulse
 
-_HTTPS is required for the backend to work._
+>  HTTPS is required for the backend to work. { .note }
 
 For local development, you will need to set up Deno and checkout the WebPulse Analytics project from GitHub. Follow
 these steps to get started:
+
+## Getting started
 
 1. **Deno Setup**:
    - If you haven't already, install Deno by following the official Deno installation guide

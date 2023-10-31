@@ -1,3 +1,7 @@
+---
+title: "Contributing"
+nav_order: 5
+---
 # WebPulse Analytics Contribution Guide
 
 We welcome contributions to the WebPulse Analytics project, including the main backend as well as the developer

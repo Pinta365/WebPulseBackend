@@ -1,9 +1,9 @@
 ---
 title: "Front-end Setup"
-nav_order: 4
+nav_order: 3
 ---
 
-# Setting up the front-end for WebPulse
+# Setting up the frontend for WebPulse
 
 Learn how to set up an own instance of WebPulse Analytics front-end. The repo of the front end is
 [https://github.com/pinta365/webpulseanalytics](https://github.com/pinta365/webpulseanalytics).
@@ -40,8 +40,8 @@ GITHUB_CALLBACK_URL=http://localhost:8000/api/auth/github/callback
 # Base URL for your website
 WEBSITE_BASE_URL=http://localhost:8000
 
-# Deno key-value (KV) database configuration
-DENO_KV_LOCAL_DATABASE=./db/database
+# MongoDB database configuration
+MONGO_URI=mongodb://localhost:27017/
 ```
 
 **Creating a new JWT Secret**
@@ -104,4 +104,4 @@ To start the front-end server, run the following command:
 deno task start
 ```
 
-You will then be able to access the front-end at http://localhost:800
+You will then be able to access the front-end at http://localhost:8000

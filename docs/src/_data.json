@@ -21,8 +21,12 @@
     ],
     "nav_links": [
         {
-            "title": "GitHub Repository",
+            "title": "GitHub Back-end Repository",
             "url": "https://github.com/pinta365/WebPulseBackend"
+        },
+        {
+            "title": "GitHub Front-end Repository",
+            "url": "https://github.com/Pinta365/WebPulseAnalytics"
         },
         {
             "title": "webpulseanalytics.com",
