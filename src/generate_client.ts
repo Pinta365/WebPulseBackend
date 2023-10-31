@@ -49,8 +49,8 @@ export function generateScript(
             return sessionObj;
         }
 
-        const deviceId = localStorage.getItem("deviceId") || genId();
-        localStorage.setItem("deviceId", deviceId);
+        const deviceId = localStorage.getItem("uniqueDeviceId") || genId();
+        localStorage.setItem("uniqueDeviceId", deviceId);
         
         let sessionObj = checkAndRenewSession(JSON.parse(sessionStorage.getItem("sessionObj")));
     `;
