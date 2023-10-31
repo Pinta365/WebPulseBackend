@@ -18,7 +18,12 @@ export async function track(body: string, req: Request) {
         }
 
         if (project.options.storeLocation) {
-            const location = await getCountryFromIP(req);
+            //const location = await getCountryFromIP(req);
+            const location = {
+                debug: req.ip,
+                countryShort: "",
+                countryLong: "",
+            };
             if (location) {
                 payload.location = location;
             }

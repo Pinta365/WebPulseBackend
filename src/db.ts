@@ -89,7 +89,6 @@ export async function setDatabaseVersion(newVersion: string): Promise<boolean> {
 }
 
 async function checkMigrations() {
-    console.log("Checking for migrations");
     const versionString = await getDatabaseVersion();
 
     // Compare application version with db version
@@ -100,6 +99,7 @@ async function checkMigrations() {
     }
 
     if (semver.lt(version, REQUIRED_DATABASE_VERSION)) {
+        console.log("Checking for migrations");
         // New version, check for migrations and apply them in correct order
         await applyMigrations(version);
     }
