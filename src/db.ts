@@ -10,7 +10,7 @@ export { ObjectId } from "../deps.ts";
 export type { Db } from "../deps.ts";
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
-const CURRENT_DATABASE_VERSION = "0.0.1";
+const CURRENT_DATABASE_VERSION = "0.0.2";
 const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
 const mongoClient = new MongoClient(config.MongoUri!);
@@ -22,7 +22,11 @@ export async function getDatabase(): Promise<Db> {
         mongoDatabase = mongoClient.db("WebPulse");
         console.log("Connected to MongoDB");
     }
-    await checkMigrations();
+
+    if (config.runMigrations) {
+        await checkMigrations();
+    }
+
     return mongoDatabase;
 }
 
@@ -85,6 +89,7 @@ export async function setDatabaseVersion(newVersion: string): Promise<boolean> {
 }
 
 async function checkMigrations() {
+    console.log("Checking for migrations");
     const versionString = await getDatabaseVersion();
 
     // Compare application version with db version
@@ -95,7 +100,6 @@ async function checkMigrations() {
     }
 
     if (semver.lt(version, REQUIRED_DATABASE_VERSION)) {
-        console.log("Checking for migrations");
         // New version, check for migrations and apply them in correct order
         await applyMigrations(version);
     }
@@ -135,9 +139,10 @@ async function applyMigrations(currentVersion: semver.SemVer) {
 }
 
 export interface ProjectOptions {
+    storeUserAgent: boolean;
+    storeLocation: boolean;
     pageLoads: {
         enabled: boolean;        
-        storeUserAgent: boolean;
     };
     pageClicks: {
         enabled: boolean;

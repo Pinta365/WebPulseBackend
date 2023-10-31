@@ -11,15 +11,13 @@ export async function track(body: string, req: Request) {
     if (project && project._id) {
         payload.timestamp = Date.now();
 
-        if (project.options.pageLoads.storeUserAgent) {
+        if (project.options.storeUserAgent) {
             const userAgent = getUserAgent(req);
             const { browser, cpu, device, engine, os, ua } = userAgent;
             payload.userAgent = { browser, cpu, device, engine, os, ua } as UserAgentData;
         }
 
-        //if (project.options.pageLoads.storeLocation) {
-        // Använder parametern för UA så länge.
-        if (project.options.pageLoads.storeUserAgent) {
+        if (project.options.storeLocation) {
             const location = await getCountryFromIP(req);
             if (location) {
                 payload.location = location;
