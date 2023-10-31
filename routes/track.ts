@@ -8,7 +8,7 @@ export async function track(body: string, req: Request) {
 
     const project = await getProjectConfiguration(payload?.projectId, origin) as Project;
 
-    if (project && project.id) {
+    if (project && project._id) {
         payload.timestamp = Date.now();
 
         if (project.options.pageLoads.storeUserAgent) {

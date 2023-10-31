@@ -136,7 +136,7 @@ async function applyMigrations(currentVersion: semver.SemVer) {
 
 export interface ProjectOptions {
     pageLoads: {
-        enabled: boolean;
+        enabled: boolean;        
         storeUserAgent: boolean;
     };
     pageClicks: {
@@ -239,6 +239,8 @@ async function handleSessionLogic(payload: EventPayload) {
     const isClickEvent = payload.type === "pageClick";
     const isScrollEvent = payload.type === "pageScroll";
     const isLoadEvent = payload.type === "pageLoad";
+    const isInitEvent = payload.type === "pageInit";
+    const isHideEvent = payload.type === "pageHide";
 
     const newPageLoad = {
         pageLoadId: payload.pageLoadId,
@@ -276,8 +278,10 @@ async function handleSessionLogic(payload: EventPayload) {
                 },
             );
         } else {
-            session.loads += 1;
-            await sessionCollection.updateOne({ _id: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
+            if (!isInitEvent && !isHideEvent) {
+                session.loads += 1;
+                await sessionCollection.updateOne({ _id: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
+            }
         }
 
         await sessionCollection.updateOne({ _id: payload.sessionId }, {
@@ -299,7 +303,7 @@ async function handleSessionLogic(payload: EventPayload) {
             loads: isLoadEvent ? 1 : 0,
             clicks: isClickEvent ? 1 : 0,
             scrolls: isScrollEvent ? 1 : 0,
-            pageLoads: [newPageLoad],
+            pageLoads: (isInitEvent || isHideEvent? [] : [newPageLoad]),
         };
 
         if (payload.userAgent) {
@@ -396,9 +400,6 @@ export async function getProject(projectId: string): Promise<Project|null> {
         const collection = (await getDatabase()).collection("projects");
         const idObject = new ObjectId(projectId);
         const project = await collection.findOne({ _id: idObject }) as unknown as Project;
-        if (project) {
-            project.id = projectId;
-        }
 
         return project;
     } catch (error) {
@@ -411,11 +412,6 @@ export async function getProjects(): Promise<Project[]|null> {
     try {
         const collection = (await getDatabase()).collection("projects");
         const projects = await collection.find({}).toArray() as unknown as Project[];
-
-        projects.forEach((project) => {
-            const idObject = new ObjectId(project._id);
-            project.id = idObject.toString();
-        });
 
         return projects;
     } catch (error) {

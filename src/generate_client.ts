@@ -11,6 +11,7 @@ export function generateScript(
     if (!project) {
         return false;
     }
+    project.id = project._id?.toString()!;
 
     const startBlock = `
     /* genscript v2 */
@@ -56,28 +57,16 @@ export function generateScript(
     const endBlock = "} initTracking('" + project.id + "', '" +
         config.trackerURL + "');";
     let optionalBlock = "";
+    
+    optionalBlock += `reportBack({
+        type: "pageInit",
+        projectId,
+        deviceId,
+        sessionId: sessionObj.id,
+        pageLoadId: "${pageLoadId}"
+    });`;
 
-    if (project?.options?.pageLoads.enabled) {
-        optionalBlock += `reportBack({
-            type: "pageLoad",
-            projectId,
-            deviceId,
-            sessionId: sessionObj.id,
-            pageLoadId: "${pageLoadId}",
-            referrer: document.referrer,
-            title: document.title,
-            url: window.location.href
-        });`;
-    }
-
-    // Den här borde ha ett eget option. Men får ligga på PageLoad flaggan nu
-    // Borde vara "ett option för att förbätra upplösningen på lastEventAt"
-    //
-    // Byter session id EFTER hemrapportering för att hidden eventen ska kopplas mot föregående session.. (?) :)
-    //
-    // Fick slänga in en "previous state" checker för visibilityState === hidden kunde trigga 3 ggr vid tab change.. lite konstigt?
-    if (project?.options?.pageLoads.enabled) {
-        optionalBlock += `let prevVisibilityState = document.visibilityState;
+    optionalBlock += `let prevVisibilityState = document.visibilityState;
         document.addEventListener("visibilitychange", function (e) {            
             if (document.visibilityState === "hidden" && prevVisibilityState !== "hidden") {
                 reportBack({
@@ -94,7 +83,20 @@ export function generateScript(
               prevVisibilityState = document.visibilityState;
         });
         `;
+
+    if (project?.options?.pageLoads.enabled) {
+        optionalBlock += `reportBack({
+            type: "pageLoad",
+            projectId,
+            deviceId,
+            sessionId: sessionObj.id,
+            pageLoadId: "${pageLoadId}",
+            referrer: document.referrer,
+            title: document.title,
+            url: window.location.href
+        });`;
     }
+
 
     if (project?.options?.pageClicks.enabled) {
         optionalBlock += `document.addEventListener("click", function (e) {
