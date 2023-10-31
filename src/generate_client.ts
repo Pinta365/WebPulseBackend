@@ -79,7 +79,6 @@ export function generateScript(
                     url: window.location.href
                 });
               }
-              sessionObj = checkAndRenewSession(sessionObj);
               prevVisibilityState = document.visibilityState;
         });
         `;
