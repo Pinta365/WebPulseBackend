@@ -238,9 +238,9 @@ type IncrementData = {
 async function handleSessionLogic(payload: EventPayload) {
     const db = await getDatabase();
     const sessionCollection = db.collection("sessions");
-
+    
     const session = await sessionCollection.findOne({ _id: payload.sessionId }) as SessionObject | null;
-
+    console.log("DEBUG", session?true:false, "Session:", payload.sessionId, payload.type)
     const isClickEvent = payload.type === "pageClick";
     const isScrollEvent = payload.type === "pageScroll";
     const isLoadEvent = payload.type === "pageLoad";
@@ -288,7 +288,6 @@ async function handleSessionLogic(payload: EventPayload) {
                 await sessionCollection.updateOne({ _id: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
             }
         }
-
         await sessionCollection.updateOne({ _id: payload.sessionId }, {
             $set: {
                 lastEventAt: payload.timestamp,
@@ -374,9 +373,6 @@ export async function insertEvent(payload: EventPayload) {
         payload.deviceId = new ObjectId(payload.deviceId);
         payload.projectId = new ObjectId(payload.projectId);
 
-        if(payload.projectId.toString() === "653d68c753423fd4499d5014") {
-            console.log(payload);
-        }
         // Create or update the session and device collection a long with counters.
         await handleSessionLogic(payload);
         await handleDeviceLogic(payload);
@@ -387,6 +383,7 @@ export async function insertEvent(payload: EventPayload) {
         const collection = db.collection("events");
         await collection.insertOne(payload);
     } catch (error) {
+        console.log("DEBUG", payload);
         logError("Error writing event", error);
     }
 }

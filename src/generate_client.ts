@@ -80,6 +80,7 @@ export function generateScript(
                 });
               }
               prevVisibilityState = document.visibilityState;
+              sessionObj = checkAndRenewSession(sessionObj);
         });
         `;
 
