@@ -240,7 +240,7 @@ async function handleSessionLogic(payload: EventPayload) {
     const sessionCollection = db.collection("sessions");
     
     const session = await sessionCollection.findOne({ _id: payload.sessionId }) as SessionObject | null;
-    console.log("DEBUG", session?true:false, "Session:", payload.sessionId, payload.type)
+    console.log("DEBUG", session?true:false, "Device:", payload.deviceId, "Session:", payload.sessionId, payload.type)
     const isClickEvent = payload.type === "pageClick";
     const isScrollEvent = payload.type === "pageScroll";
     const isLoadEvent = payload.type === "pageLoad";
