@@ -13,7 +13,7 @@ console.log("debug >>", config);
 try {
     // Mongo
     await getDatabase();
-    // Location DB 
+    // Location DB
     // Disabled for now.
     //getLocationDatabase();
     // Scheduler

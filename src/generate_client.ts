@@ -57,7 +57,7 @@ export function generateScript(
     const endBlock = "} initTracking('" + project.id + "', '" +
         config.trackerURL + "');";
     let optionalBlock = "";
-    
+
     optionalBlock += `let prevVisibilityState = document.visibilityState;
         document.addEventListener("visibilitychange", function (e) {            
             if (document.visibilityState === "hidden" && prevVisibilityState !== "hidden") {
@@ -97,10 +97,31 @@ export function generateScript(
         });`;
     }
 
-
     if (project?.options?.pageClicks.enabled) {
         optionalBlock += `document.addEventListener("click", function (e) {
-            sessionObj = checkAndRenewSession(sessionObj);
+            sessionObj = checkAndRenewSession(sessionObj);`;
+
+        if (project?.options?.pageClicks.captureAllClicks === false) {
+            optionalBlock += `
+                    const classicClickableTags = ["A", "BUTTON", "INPUT", "TEXTAREA", "SELECT"];
+                    let target = e.target;
+                
+                    // Traverse up the DOM tree to find a clickable element
+                    while (target) {
+                        if (classicClickableTags.includes(target.tagName.toUpperCase())) break;
+                        if (target.getAttribute("role") === "button") break;
+                        
+                        const computedStyle = window.getComputedStyle(target);
+                        if (computedStyle.cursor === "pointer") break;
+                
+                        target = target.parentElement;
+                    }
+                
+                    if (!target) return;  // Not a clickable element
+                `;
+        }
+
+        optionalBlock += `
             reportBack({
                 type: "pageClick",
                 projectId,
@@ -119,7 +140,7 @@ export function generateScript(
     }
 
     if (project?.options?.pageScrolls.enabled) {
-        optionalBlock += `;
+        optionalBlock += `
         const trackedPercentages = [25, 50, 75, 100];
         const alreadyTracked = [];
     

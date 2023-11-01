@@ -18,17 +18,12 @@ export async function track(body: string, req: Request) {
         }
 
         if (project.options.storeLocation) {
-            //const location = await getCountryFromIP(req);
-            const location = {
-                debug: req.ip,
-                countryShort: "",
-                countryLong: "",
-            };
+            const location = await getCountryFromIP(req);
             if (location) {
                 payload.location = location;
             }
         }
-        
+
         await insertEvent(payload);
 
         return 200;

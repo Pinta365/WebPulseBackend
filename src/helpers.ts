@@ -3,11 +3,19 @@ import { decodeTime, ulid, UserAgent } from "../deps.ts";
 //import { IP2Location } from "../deps.ts";
 import { LocationData } from "./db.ts";
 
-export async function getCountryFromIP(req: Request): Promise<LocationData|null> {
+export async function getCountryFromIP(req: Request): Promise<LocationData | null> {
     const ip = req.ip;
+    const abortSeconds = 5;
+    
     if (ip) {
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        setTimeout(() => controller.abort(), abortSeconds * 1000);
+
         try {
-            const response = await fetch(`http://ip-api.com/json/${ip.trim()}`);
+            const response = await fetch(`http://ip-api.com/json/${ip.trim()}`, { signal });
+
             if (response.ok) {
                 const data = await response.json();
 
@@ -18,20 +26,25 @@ export async function getCountryFromIP(req: Request): Promise<LocationData|null>
                     };
                     return result;
                 }
-            } 
+            }
 
             return null;
         } catch (error) {
-            console.error(error);
+            if (error.name === "AbortError") {
+                console.error(`Request was aborted after ${abortSeconds} seconds`);
+            } else {
+                console.error(error);
+            }
             return null;
         }
     } else {
         return null;
     }
 }
+
 /*
 let ip2location: IP2Location | null = null;
- 
+
 export function getLocationDatabase(): IP2Location {
     if (!ip2location) {
         ip2location = new IP2Location();
@@ -40,7 +53,7 @@ export function getLocationDatabase(): IP2Location {
     }
     return ip2location;
 }
- 
+
 export function getCountryFromIP(req: Request): LocationData | null {
     const ip = req.ip;
     if (ip) {
@@ -48,12 +61,12 @@ export function getCountryFromIP(req: Request): LocationData | null {
             const db = getLocationDatabase();
             const countryShort = db.getCountryShort(ip);
             const countryLong = db.getCountryLong(ip);
-            
+
             if (countryLong === "-" || countryLong === "INVALID_IP_ADDRESS") {
                 // unresolvable or invalid
                 return null;
             }
-            
+
             const result: LocationData = {
                 debug: ip,
                 countryShort,

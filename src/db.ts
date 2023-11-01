@@ -142,11 +142,11 @@ export interface ProjectOptions {
     storeUserAgent: boolean;
     storeLocation: boolean;
     pageLoads: {
-        enabled: boolean;        
+        enabled: boolean;
     };
     pageClicks: {
         enabled: boolean;
-        capureAllClicks: boolean;
+        captureAllClicks: boolean;
     };
     pageScrolls: {
         enabled: boolean;
@@ -238,9 +238,8 @@ type IncrementData = {
 async function handleSessionLogic(payload: EventPayload) {
     const db = await getDatabase();
     const sessionCollection = db.collection("sessions");
-    
+
     const session = await sessionCollection.findOne({ _id: payload.sessionId }) as SessionObject | null;
-    console.log("DEBUG", session?true:false, "Device:", payload.deviceId, "Session:", payload.sessionId, payload.type)
     const isClickEvent = payload.type === "pageClick";
     const isScrollEvent = payload.type === "pageScroll";
     const isLoadEvent = payload.type === "pageLoad";
@@ -260,7 +259,9 @@ async function handleSessionLogic(payload: EventPayload) {
     };
 
     if (session) {
-        const existingPageLoad = session.pageLoads.find((pageLoad) => pageLoad.pageLoadId.toString() === payload.pageLoadId.toString());
+        const existingPageLoad = session.pageLoads.find((pageLoad) =>
+            pageLoad.pageLoadId.toString() === payload.pageLoadId.toString()
+        );
 
         if (existingPageLoad) {
             const incrementData: IncrementData = {};
@@ -307,7 +308,7 @@ async function handleSessionLogic(payload: EventPayload) {
             loads: isLoadEvent ? 1 : 0,
             clicks: isClickEvent ? 1 : 0,
             scrolls: isScrollEvent ? 1 : 0,
-            pageLoads: (isInitEvent || isHideEvent? [] : [newPageLoad]),
+            pageLoads: (isInitEvent || isHideEvent ? [] : [newPageLoad]),
         };
 
         if (payload.userAgent) {
@@ -383,8 +384,8 @@ export async function insertEvent(payload: EventPayload) {
         const collection = db.collection("events");
         await collection.insertOne(payload);
     } catch (error) {
-        console.log("DEBUG", payload);
         logError("Error writing event", error);
+        logError("Payload =", payload);
     }
 }
 
@@ -400,7 +401,7 @@ export async function getEvents(projectId: string): Promise<EventPayload[]> {
     }
 }
 
-export async function getProject(projectId: string): Promise<Project|null> {
+export async function getProject(projectId: string): Promise<Project | null> {
     try {
         const collection = (await getDatabase()).collection("projects");
         const idObject = new ObjectId(projectId);
@@ -413,7 +414,7 @@ export async function getProject(projectId: string): Promise<Project|null> {
     }
 }
 
-export async function getProjects(): Promise<Project[]|null> {
+export async function getProjects(): Promise<Project[] | null> {
     try {
         const collection = (await getDatabase()).collection("projects");
         const projects = await collection.find({}).toArray() as unknown as Project[];

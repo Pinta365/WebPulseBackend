@@ -15,24 +15,26 @@ export async function migration(database: Db) {
         const collection = database.collection("projects");
         const projects = await collection.find({}).toArray();
 
-
         for (const proj of projects) {
             // Copy the values, default to true if they don't exist.
-            const UA = proj.options.pageLoads.storeUserAgent !== undefined ? proj.options.pageLoads.storeUserAgent : true;
-            const Loc = proj.options.pageLoads.storeLocation !== undefined ? proj.options.pageLoads.storeLocation : true;
-        
+            const UA = proj.options.pageLoads.storeUserAgent !== undefined
+                ? proj.options.pageLoads.storeUserAgent
+                : true;
+            const Loc = proj.options.pageLoads.storeLocation !== undefined
+                ? proj.options.pageLoads.storeLocation
+                : true;
+
             // Set the new properties
             proj.options.storeUserAgent = UA;
             proj.options.storeLocation = Loc;
-        
+
             // Delete the old properties
             delete proj.options.pageLoads.storeUserAgent;
             delete proj.options.pageLoads.storeLocation;
-        
+
             // Update the database
             await collection.updateOne({ _id: proj._id }, { $set: proj });
         }
-        
 
         // Done, set version and return true!
         setDatabaseVersion(databaseVersion);
