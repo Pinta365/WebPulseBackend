@@ -58,14 +58,6 @@ export function generateScript(
         config.trackerURL + "');";
     let optionalBlock = "";
     
-    optionalBlock += `reportBack({
-        type: "pageInit",
-        projectId,
-        deviceId,
-        sessionId: sessionObj.id,
-        pageLoadId: "${pageLoadId}"
-    });`;
-
     optionalBlock += `let prevVisibilityState = document.visibilityState;
         document.addEventListener("visibilitychange", function (e) {            
             if (document.visibilityState === "hidden" && prevVisibilityState !== "hidden") {
@@ -94,6 +86,14 @@ export function generateScript(
             referrer: document.referrer,
             title: document.title,
             url: window.location.href
+        });`;
+    } else {
+        optionalBlock += `reportBack({
+            type: "pageInit",
+            projectId,
+            deviceId,
+            sessionId: sessionObj.id,
+            pageLoadId: "${pageLoadId}"
         });`;
     }
 
