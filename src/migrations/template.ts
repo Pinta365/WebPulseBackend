@@ -8,7 +8,7 @@ export const changeLog = [
     "Set db_version to X.Y.Z-tag.revision",
 ];
 
-export async function migration(database: Db) {
+export async function migration(_database: Db) {
     try {
         // ... do migration
         await Promise.all([]);

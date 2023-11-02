@@ -6,7 +6,7 @@ import { LocationData } from "./db.ts";
 export async function getCountryFromIP(req: Request): Promise<LocationData | null> {
     const ip = req.ip;
     const abortSeconds = 5;
-    
+
     if (ip) {
         const controller = new AbortController();
         const signal = controller.signal;

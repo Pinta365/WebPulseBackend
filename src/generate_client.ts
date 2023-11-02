@@ -11,7 +11,7 @@ export function generateScript(
     if (!project) {
         return false;
     }
-    project.id = project._id?.toString()!;
+    const projectId = project._id?.toString();
 
     const startBlock = `
     /* genscript v2 */
@@ -54,7 +54,7 @@ export function generateScript(
         
         let sessionObj = checkAndRenewSession(JSON.parse(sessionStorage.getItem("sessionObj")));
     `;
-    const endBlock = "} initTracking('" + project.id + "', '" +
+    const endBlock = "} initTracking('" + projectId + "', '" +
         config.trackerURL + "');";
     let optionalBlock = "";
 
@@ -93,7 +93,8 @@ export function generateScript(
             projectId,
             deviceId,
             sessionId: sessionObj.id,
-            pageLoadId: "${pageLoadId}"
+            pageLoadId: "${pageLoadId}",
+            referrer: document.referrer,
         });`;
     }
 

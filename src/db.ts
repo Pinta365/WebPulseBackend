@@ -155,7 +155,6 @@ export interface ProjectOptions {
 
 export interface Project {
     _id?: ObjectId; //skapas is DBn
-    id: string;
     ownerId: string;
     name: string;
     description?: string;
@@ -163,18 +162,49 @@ export interface Project {
     options: ProjectOptions;
 }
 
-export interface EventPayload {
-    // Fixed types
-    timestamp: number;
+export type EventPayload = PageInitPayload | PageLoadPayload | PageHidePayload | PageClickPayload | PageScrollPayload;
+
+interface PayloadBaseTypes {
     projectId: ObjectId;
-    type: string;
-    pageLoadId: ObjectId;
     deviceId: ObjectId;
     sessionId: ObjectId;
+    pageLoadId: ObjectId;
+    timestamp: number;
     userAgent?: UserAgentData;
     location?: LocationData;
-    // eventtype specific types.. should be typed at some point
-    [key: string]: string | number | undefined | ObjectId | LocationData | UserAgentData;
+}
+
+interface PageLoadPayload extends PayloadBaseTypes {
+    type: "pageLoad";
+    referrer: string;
+    title: string;
+    url: string;
+}
+
+interface PageInitPayload extends PayloadBaseTypes {
+    type: "pageInit";
+    referrer: string;
+}
+
+interface PageHidePayload extends PayloadBaseTypes {
+    type: "pageHide";
+    title: string;
+    url: string;
+}
+
+interface PageClickPayload extends PayloadBaseTypes {
+    type: "pageClick";
+    targetTag?: string;
+    targetId?: string;
+    targetHref?: string;
+    targetClass?: string;
+    x?: number;
+    y?: number;
+}
+
+interface PageScrollPayload extends PayloadBaseTypes {
+    type: "pageScroll";
+    depth?: string;
 }
 
 export interface UserAgentData {
@@ -190,11 +220,15 @@ export interface LocationData {
     countryLong: string;
 }
 
-interface PageLoad {
+interface PageLoadObject {
     pageLoadId: ObjectId;
     timestamp: number;
     firstEventAt: number;
     lastEventAt: number;
+
+    referrer?: string;
+    title?: string;
+    url?: string;
 
     clicks: number;
     scrolls: number;
@@ -214,7 +248,7 @@ interface SessionObject {
     clicks: number;
     scrolls: number;
 
-    pageLoads: PageLoad[];
+    pageLoads: PageLoadObject[];
 }
 
 interface DeviceObject {
@@ -240,23 +274,27 @@ async function handleSessionLogic(payload: EventPayload) {
     const sessionCollection = db.collection("sessions");
 
     const session = await sessionCollection.findOne({ _id: payload.sessionId }) as SessionObject | null;
+
     const isClickEvent = payload.type === "pageClick";
     const isScrollEvent = payload.type === "pageScroll";
     const isLoadEvent = payload.type === "pageLoad";
     const isInitEvent = payload.type === "pageInit";
     const isHideEvent = payload.type === "pageHide";
 
-    const newPageLoad = {
+    const newPageLoad: Partial<PageLoadObject> = {
         pageLoadId: payload.pageLoadId,
-        url: payload.url,
-        title: payload.title,
-        referer: payload.referrer,
         timestamp: payload.timestamp,
         firstEventAt: payload.timestamp,
         lastEventAt: payload.timestamp,
         clicks: isClickEvent ? 1 : 0,
         scrolls: isScrollEvent ? 1 : 0,
     };
+
+    if (payload.type === "pageLoad") {
+        newPageLoad.url = payload.url;
+        newPageLoad.title = payload.title;
+        newPageLoad.referrer = payload.referrer;
+    }
 
     if (session) {
         const existingPageLoad = session.pageLoads.find((pageLoad) =>
@@ -308,7 +346,7 @@ async function handleSessionLogic(payload: EventPayload) {
             loads: isLoadEvent ? 1 : 0,
             clicks: isClickEvent ? 1 : 0,
             scrolls: isScrollEvent ? 1 : 0,
-            pageLoads: (isInitEvent || isHideEvent ? [] : [newPageLoad]),
+            pageLoads: (isInitEvent || isHideEvent ? [] : [newPageLoad as PageLoadObject]),
         };
 
         if (payload.userAgent) {

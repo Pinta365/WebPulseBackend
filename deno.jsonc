@@ -9,6 +9,6 @@
         "exclude": ["./bin/*"]
     },
     "lint": {
-        "exclude": ["./dev/*"]
+        "exclude": ["./dev/*", "./docs/*"]
     }
 }

@@ -8,7 +8,7 @@ export const changeLog = [
     "Set db_version to 0.0.1",
 ];
 
-export async function migration(database: Db) {
+export async function migration(_database: Db) {
     try {
         // ... do migration
         await Promise.all([]);
