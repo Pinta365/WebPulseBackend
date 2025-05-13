@@ -1,7 +1,7 @@
 # WebPulse: Web Analytics with Deno
 
 WebPulse is a powerful, open-source web analytics tool that offers a compelling alternative to proprietary solutions
-like Google Analytics. With WebPulse, you gain complete control over your analytics data and privacy. 
+like Google Analytics. With WebPulse, you gain complete control over your analytics data and privacy.
 
 You can explore the full functionality of WebPulse for free by visiting
 [webpulseanalytics.com](https://webpulseanalytics.com), where it is showcased and available for use.

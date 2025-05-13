@@ -38,15 +38,14 @@ Here's a full HTML page example that includes the WebPulse Analytics tracking sc
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <script async src="https://your.server/client/<project-id>" type="module"></script>
+        <script async src="https://your.server/client/<project-id>" type="module"></script>
 
-    <title>Your Page Title</title>
-</head>
-<body>
-   </body>
+        <title>Your Page Title</title>
+    </head>
+    <body></body>
 </html>
 ```

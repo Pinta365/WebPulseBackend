@@ -1,4 +1,4 @@
-import { Cron } from "../deps.ts";
+import { Cron } from "@hexagon/croner";
 
 export function initSchedule() {
     const dailyJob = new Cron("0 0 4 * * *", () => {

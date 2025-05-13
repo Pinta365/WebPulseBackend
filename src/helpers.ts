@@ -1,10 +1,17 @@
-import { Request } from "../deps.ts";
-import { decodeTime, ulid, UserAgent } from "../deps.ts";
+import { decodeTime, ulid } from "@std/ulid";
+import { UserAgent } from "@std/http";
 //import { IP2Location } from "../deps.ts";
-import { LocationData } from "./db.ts";
+import { LocationData } from "./types.ts";
+
+// Helper to extract IP from standard Fetch API Request headers
+export function getIpFromRequest(req: Request): string | undefined {
+    return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("x-real-ip") ||
+        undefined;
+}
 
 export async function getCountryFromIP(req: Request): Promise<LocationData | null> {
-    const ip = req.ip;
+    const ip = getIpFromRequest(req);
     const abortSeconds = 5;
 
     if (ip) {
@@ -29,7 +36,7 @@ export async function getCountryFromIP(req: Request): Promise<LocationData | nul
             }
 
             return null;
-        } catch (error) {
+        } catch (error: any) {
             if (error.name === "AbortError") {
                 console.error(`Request was aborted after ${abortSeconds} seconds`);
             } else {

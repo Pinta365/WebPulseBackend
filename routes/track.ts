@@ -1,10 +1,9 @@
-import { Request } from "../deps.ts";
-import { getProjectConfiguration, insertEvent, Project, UserAgentData } from "../src/db.ts";
+import { getProjectConfiguration, insertEvent } from "../src/db.ts";
 import { getCountryFromIP, getOrigin, getUserAgent } from "../src/helpers.ts";
+import type { IncomingEventPayload, Project, UserAgentData } from "../src/types.ts";
 
-export async function track(body: string, req: Request) {
+export async function track(payload: IncomingEventPayload, req: Request) {
     const origin = getOrigin(req);
-    const payload = JSON.parse(body);
 
     const project = await getProjectConfiguration(payload?.projectId, origin) as Project;
 
@@ -24,7 +23,7 @@ export async function track(body: string, req: Request) {
             }
         }
 
-        await insertEvent(payload);
+        await insertEvent(payload as any);
 
         return 200;
     } else {

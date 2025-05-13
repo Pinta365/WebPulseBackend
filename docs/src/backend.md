@@ -47,11 +47,10 @@ these steps to get started:
      inspect it to understand the required variables. Make any necessary changes to match your local setup.
 
 5. **Start the WebPulse Analytics Backend**:
-   - Run the following command to start the WebPulse Analytics backend. The `-A` flag allows all permissions for Deno,
-     and `mod.ts` is the entry point of the project:
+   - Run the following command to start the WebPulse Analytics backend.
 
      ```bash
-     deno run -A mod.ts
+     deno task dev
      ```
 
    - The backend will start, and you will be able to access it locally via HTTPS.

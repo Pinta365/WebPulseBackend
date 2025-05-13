@@ -1,34 +1,45 @@
-import { Context, Router } from "../deps.ts";
-const router = new Router();
-
+import { Hono } from "@hono/hono";
 import { getClient } from "./get_client.ts";
 import { track } from "./track.ts";
 import { root } from "./root.ts";
 
-router.post("/track", async (ctx: Context) => {
-    const data = await ctx.request.body().value;
-    const trackerCode = await track(data, ctx.request);
+const app = new Hono();
 
-    ctx.response.body = null;
-    ctx.response.status = trackerCode;
-});
-
-router.get("/client/:projectId", async (ctx: Context) => {
-    const projectId = ctx?.params?.projectId;
-    const script = await getClient(projectId, ctx.request);
-
-    if (script) {
-        ctx.response.type = "application/javascript";
-        ctx.response.body = script;
-    } else {
-        ctx.response.body = null;
-        ctx.response.status = 403;
+app.post("/track", async (c) => {
+    try {
+        const data = await c.req.json();
+        const trackerCode = await track(data, c.req.raw);
+        return c.body(null, trackerCode);
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: "Internal server error" }, 500);
     }
 });
 
-router.get("/", (ctx: Context) => {
-    ctx.response.type = "text/html";
-    ctx.response.body = root();
+app.get("/client/:projectId", async (c) => {
+    try {
+        const projectId = c.req.param("projectId");
+        const script = await getClient(projectId, c.req.raw);
+        if (script) {
+            c.header("Content-Type", "application/javascript");
+            return c.body(script);
+        } else {
+            return c.body(null, 403);
+        }
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: "Internal server error" }, 500);
+    }
 });
 
-export default router;
+app.get("/", (c) => {
+    try {
+        c.header("Content-Type", "text/html");
+        return c.body(root());
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: "Internal server error" }, 500);
+    }
+});
+
+export default app;

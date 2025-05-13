@@ -1,7 +1,7 @@
-import { Request } from "../deps.ts";
 import { generateScript } from "../src/generate_client.ts";
 import { getOrigin, minifyJS } from "../src/helpers.ts";
-import { getProjectConfiguration, ObjectId, Project } from "../src/db.ts";
+import { getProjectConfiguration, ObjectId } from "../src/db.ts";
+import type { Project } from "../src/types.ts";
 
 export async function getClient(projectId: string, req: Request) {
     const origin = getOrigin(req);

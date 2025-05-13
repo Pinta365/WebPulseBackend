@@ -1,7 +1,7 @@
 /**
  * Generate JavaScript that gets sent to the client.
  */
-import { Project } from "./db.ts";
+import type { Project } from "./types.ts";
 import { config } from "./config.ts";
 
 export function generateScript(

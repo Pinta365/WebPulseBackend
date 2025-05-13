@@ -3,7 +3,7 @@ import router from "./routes/routes.ts";
 import { config } from "./src/config.ts";
 import { getDatabase } from "./src/db.ts";
 //import { getLocationDatabase } from "./src/helpers.ts";
-import { Application } from "./deps.ts";
+import { Hono } from "@hono/hono";
 import { initSchedule } from "./src/scheduler.ts";
 
 // Temporary debugging log.
@@ -19,33 +19,30 @@ try {
     // Scheduler
     initSchedule();
 } catch (e) {
-    throw new Error(e);
+    throw new Error(String(e));
 }
 
-const app = new Application();
+const app = new Hono();
 
-app.use(async (ctx, next) => {
-    ctx.response.headers.set("Access-Control-Allow-Headers", "Content-Type");
-    ctx.response.headers.set("Access-Control-Allow-Origin", "*");
-    ctx.response.headers.set("Access-Control-Allow-Methods", "POST, GET");
+// CORS and headers middleware
+app.use("*", async (c, next) => {
+    c.header("Access-Control-Allow-Headers", "Content-Type");
+    c.header("Access-Control-Allow-Origin", "*");
+    c.header("Access-Control-Allow-Methods", "POST, GET");
     await next();
 });
 
-app.use(router.routes());
-app.use(router.allowedMethods());
+// Use the router (which should be refactored to export a Hono instance or routes)
+app.route("/", router);
 
-// Serve as HTTPS?
-const serveOptions = config.serveHttps
-    ? {
+if (config.serveHttps) {
+    console.log(`Server running with HTTPS on port ${config.serverPort}`);
+    Deno.serve({
         port: config.serverPort,
-        secure: true,
-        certFile: "keys/cert.pem",
-        keyFile: "keys/key.pem",
-    }
-    : {
-        // Deno.serve with http
-        port: config.serverPort,
-    };
-
-console.log(`Server running on port ${config.serverPort}`);
-await app.listen(serveOptions);
+        cert: Deno.readTextFileSync("keys/cert.pem"),
+        key: Deno.readTextFileSync("keys/key.pem"),
+    }, app.fetch);
+} else {
+    console.log(`Server running with HTTP on port ${config.serverPort}`);
+    Deno.serve({ port: config.serverPort }, app.fetch);
+}

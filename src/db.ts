@@ -1,13 +1,21 @@
-import { Db, MongoClient, ObjectId } from "../deps.ts";
+import { Db, MongoClient, ObjectId } from "mongodb";
 import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
-import { semver } from "../deps.ts";
-import { resolve } from "../deps.ts";
+import * as semver from "@std/semver";
+import { resolve } from "@std/path";
 
-import type { Browser, Cpu, Device, Engine, Os } from "../deps.ts";
+import type {
+    DbVersionDocument,
+    DeviceObject,
+    EventPayload,
+    IncrementData,
+    PageLoadObject,
+    Project,
+    SessionObject,
+} from "./types.ts";
 
-export { ObjectId } from "../deps.ts";
-export type { Db } from "../deps.ts";
+export { ObjectId } from "mongodb";
+export type { Db } from "mongodb";
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
 const CURRENT_DATABASE_VERSION = "0.0.2";
@@ -36,12 +44,6 @@ export async function disconnect(): Promise<void> {
     console.log("MongoDB connection closed.");
 }
 
-export interface DbVersionDocument {
-    _id: ObjectId;
-    key: string;
-    value: string;
-}
-
 //Get current database version, default to CURRENT_DATABASE_VERSION
 async function getDatabaseVersion(): Promise<string> {
     try {
@@ -61,7 +63,7 @@ async function getDatabaseVersion(): Promise<string> {
         return versionDoc.value;
     } catch (error) {
         console.error(error);
-        throw new Error(error);
+        throw error;
     }
 }
 
@@ -84,7 +86,7 @@ export async function setDatabaseVersion(newVersion: string): Promise<boolean> {
         return (result.modifiedCount > 0);
     } catch (error) {
         console.error(error);
-        throw new Error(error);
+        throw error;
     }
 }
 
@@ -98,7 +100,7 @@ async function checkMigrations() {
         throw new Error("Could not parse current database version.");
     }
 
-    if (semver.lt(version, REQUIRED_DATABASE_VERSION)) {
+    if (semver.lessThan(version, REQUIRED_DATABASE_VERSION)) {
         console.log("Checking for migrations");
         // New version, check for migrations and apply them in correct order
         await applyMigrations(version);
@@ -123,10 +125,12 @@ async function applyMigrations(currentVersion: semver.SemVer) {
     }
 
     // Filter applicable migrations
-    migrations = migrations.filter((m) => semver.gt(m.version as semver.SemVer, currentVersion));
+    migrations = migrations.filter((m) => semver.greaterThan(m.version as semver.SemVer, currentVersion));
 
     // Sort migrations by semver
-    migrations = migrations.sort((a, b) => semver.lt(b.version as semver.SemVer, a.version as semver.SemVer) ? 1 : -1);
+    migrations = migrations.sort((a, b) =>
+        semver.lessThan(b.version as semver.SemVer, a.version as semver.SemVer) ? 1 : -1
+    );
 
     // Apply migrations in order
     for (const migration of migrations) {
@@ -137,137 +141,6 @@ async function applyMigrations(currentVersion: semver.SemVer) {
         await migration.migration(mongoDatabase);
     }
 }
-
-export interface ProjectOptions {
-    storeUserAgent: boolean;
-    storeLocation: boolean;
-    pageLoads: {
-        enabled: boolean;
-    };
-    pageClicks: {
-        enabled: boolean;
-        captureAllClicks: boolean;
-    };
-    pageScrolls: {
-        enabled: boolean;
-    };
-}
-
-export interface Project {
-    _id?: ObjectId; //skapas is DBn
-    ownerId: string;
-    name: string;
-    description?: string;
-    allowedOrigins?: string[];
-    options: ProjectOptions;
-}
-
-export type EventPayload = PageInitPayload | PageLoadPayload | PageHidePayload | PageClickPayload | PageScrollPayload;
-
-interface PayloadBaseTypes {
-    projectId: ObjectId;
-    deviceId: ObjectId;
-    sessionId: ObjectId;
-    pageLoadId: ObjectId;
-    timestamp: number;
-    userAgent?: UserAgentData;
-    location?: LocationData;
-}
-
-interface PageLoadPayload extends PayloadBaseTypes {
-    type: "pageLoad";
-    referrer: string;
-    title: string;
-    url: string;
-}
-
-interface PageInitPayload extends PayloadBaseTypes {
-    type: "pageInit";
-    referrer: string;
-}
-
-interface PageHidePayload extends PayloadBaseTypes {
-    type: "pageHide";
-    title: string;
-    url: string;
-}
-
-interface PageClickPayload extends PayloadBaseTypes {
-    type: "pageClick";
-    targetTag?: string;
-    targetId?: string;
-    targetHref?: string;
-    targetClass?: string;
-    x?: number;
-    y?: number;
-}
-
-interface PageScrollPayload extends PayloadBaseTypes {
-    type: "pageScroll";
-    depth?: string;
-}
-
-export interface UserAgentData {
-    browser: Browser;
-    cpu: Cpu;
-    device: Device;
-    engine: Engine;
-    os: Os;
-    ua: string;
-}
-export interface LocationData {
-    countryShort: string;
-    countryLong: string;
-}
-
-interface PageLoadObject {
-    pageLoadId: ObjectId;
-    timestamp: number;
-    firstEventAt: number;
-    lastEventAt: number;
-
-    referrer?: string;
-    title?: string;
-    url?: string;
-
-    clicks: number;
-    scrolls: number;
-}
-
-interface SessionObject {
-    _id: ObjectId;
-    projectId: ObjectId;
-    deviceId: ObjectId;
-    timestamp: number;
-    firstEventAt: number;
-    lastEventAt: number;
-    userAgent?: UserAgentData;
-    location?: LocationData;
-
-    loads: number;
-    clicks: number;
-    scrolls: number;
-
-    pageLoads: PageLoadObject[];
-}
-
-interface DeviceObject {
-    _id: ObjectId;
-    projectId: ObjectId;
-    firstEventAt: number;
-    lastEventAt: number;
-    sessionIds: ObjectId[];
-
-    sessions: number;
-    loads: number;
-    clicks: number;
-    scrolls: number;
-}
-
-type IncrementData = {
-    "pageLoads.$.clicks"?: number;
-    "pageLoads.$.scrolls"?: number;
-};
 
 async function handleSessionLogic(payload: EventPayload) {
     const db = await getDatabase();
@@ -435,7 +308,7 @@ export async function getEvents(projectId: string): Promise<EventPayload[]> {
         return events;
     } catch (error) {
         console.error(error);
-        throw new Error(error);
+        throw error;
     }
 }
 
@@ -472,7 +345,7 @@ export async function insertProject(project: Project): Promise<string> {
         return projectReturned.insertedId.toString();
     } catch (error) {
         console.error(error);
-        throw new Error(error);
+        throw error;
     }
 }
 

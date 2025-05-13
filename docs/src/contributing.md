@@ -25,7 +25,6 @@ The WebPulse Analytics Backend repository has the following layout:
 - `.gitignore` (File): Configuration for Git to ignore specific files and directories.
 - `README.md` (File): The project's README.
 - `deno.jsonc` (File): Deno configuration file.
-- `deps.ts` (File): Dependencies for the project.
 - `mod.ts` (File): The main module of the project.
 
 ## How to Contribute
