@@ -18,7 +18,7 @@ export { ObjectId } from "mongodb";
 export type { Db } from "mongodb";
 
 // Update this on any database change, then copy /migrations.template.ts to migrations/<version>.ts to address the changes
-const CURRENT_DATABASE_VERSION = "0.0.2";
+const CURRENT_DATABASE_VERSION = "0.0.3";
 const REQUIRED_DATABASE_VERSION = semver.parse(CURRENT_DATABASE_VERSION) as semver.SemVer;
 
 const mongoClient = new MongoClient(config.MongoUri!);
