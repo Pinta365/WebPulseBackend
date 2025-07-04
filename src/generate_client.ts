@@ -28,19 +28,19 @@ export function generateScript(
             }
             return utms;
         }
-        `;
-    }
-
-    const startBlock = `
-    /* genscript v2 */
-        function initTracking(projectId, reportBackURL) {
-${utmBlock}
         try {
             const utmParams = getUTMParams();
             if (Object.keys(utmParams).length > 0) {
                 sessionStorage.setItem('utm_params', JSON.stringify(utmParams));
             }
         } catch (e) {}
+        `;
+    }
+
+    const startBlock = `
+    /* genscript v2 */
+        function initTracking(projectId, reportBackURL) {
+${utmBlock}       
 
         function reportBack(data) {
             const url = reportBackURL;
