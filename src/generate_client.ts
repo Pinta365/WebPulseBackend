@@ -13,15 +13,41 @@ export function generateScript(
     }
     const projectId = project._id?.toString();
 
+    let utmBlock = "";
+    if (project?.options?.storeUTM) {
+        utmBlock = `
+        function getUTMParams() {
+            const params = new URLSearchParams(window.location.search);
+            const utms = {};
+            const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+            for (const [key, value] of params.entries()) {
+                const lowerKey = key.toLowerCase();
+                if (utmKeys.includes(lowerKey)) {
+                    utms[lowerKey] = value;
+                }
+            }
+            return utms;
+        }
+        `;
+    }
+
     const startBlock = `
     /* genscript v2 */
-    function initTracking(projectId, reportBackURL) {
+        function initTracking(projectId, reportBackURL) {
+${utmBlock}
+        try {
+            const utmParams = getUTMParams();
+            if (Object.keys(utmParams).length > 0) {
+                sessionStorage.setItem('utm_params', JSON.stringify(utmParams));
+            }
+        } catch (e) {}
+
         function reportBack(data) {
             const url = reportBackURL;
             const payload = JSON.stringify(data);
             navigator.sendBeacon(url + "/track", payload);
         }
-        
+
         let baseIncrement = Math.floor(Math.random() * 0xFFFFFF);
 
         function genId() {
@@ -77,25 +103,53 @@ export function generateScript(
         `;
 
     if (project?.options?.pageLoads.enabled) {
-        optionalBlock += `reportBack({
-            type: "pageLoad",
-            projectId,
-            deviceId,
-            sessionId: sessionObj.id,
-            pageLoadId: "${pageLoadId}",
-            referrer: document.referrer,
-            title: document.title,
-            url: window.location.href
-        });`;
+        if (project?.options?.storeUTM) {
+            optionalBlock += `const utmParams = getUTMParams();\n`;
+            optionalBlock += `reportBack({
+                type: "pageLoad",
+                projectId,
+                deviceId,
+                sessionId: sessionObj.id,
+                pageLoadId: "${pageLoadId}",
+                referrer: document.referrer,
+                title: document.title,
+                url: window.location.href,
+                ...(Object.keys(utmParams).length > 0 ? { utm: utmParams } : {})
+            });`;
+        } else {
+            optionalBlock += `reportBack({
+                type: "pageLoad",
+                projectId,
+                deviceId,
+                sessionId: sessionObj.id,
+                pageLoadId: "${pageLoadId}",
+                referrer: document.referrer,
+                title: document.title,
+                url: window.location.href
+            });`;
+        }
     } else {
-        optionalBlock += `reportBack({
-            type: "pageInit",
-            projectId,
-            deviceId,
-            sessionId: sessionObj.id,
-            pageLoadId: "${pageLoadId}",
-            referrer: document.referrer,
-        });`;
+        if (project?.options?.storeUTM) {
+            optionalBlock += `const utmParams = getUTMParams();\n`;
+            optionalBlock += `reportBack({
+                type: "pageInit",
+                projectId,
+                deviceId,
+                sessionId: sessionObj.id,
+                pageLoadId: "${pageLoadId}",
+                referrer: document.referrer,
+                ...(Object.keys(utmParams).length > 0 ? { utm: utmParams } : {})
+            });`;
+        } else {
+            optionalBlock += `reportBack({
+                type: "pageInit",
+                projectId,
+                deviceId,
+                sessionId: sessionObj.id,
+                pageLoadId: "${pageLoadId}",
+                referrer: document.referrer
+            });`;
+        }
     }
 
     if (project?.options?.pageClicks.enabled) {

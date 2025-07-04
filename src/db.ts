@@ -197,7 +197,10 @@ async function handleSessionLogic(payload: EventPayload) {
         } else {
             if (!isInitEvent && !isHideEvent) {
                 session.loads += 1;
-                await sessionCollection.updateOne({ _id: payload.sessionId }, { $push: { pageLoads: newPageLoad } });
+                // deno-lint-ignore no-explicit-any
+                await sessionCollection.updateOne({ _id: payload.sessionId }, {
+                    $push: { pageLoads: newPageLoad as any },
+                });
             }
         }
         await sessionCollection.updateOne({ _id: payload.sessionId }, {
@@ -227,6 +230,9 @@ async function handleSessionLogic(payload: EventPayload) {
         }
         if (payload.location) {
             sessionData.location = payload.location;
+        }
+        if (payload.utm) {
+            sessionData.utm = payload.utm;
         }
         await sessionCollection.insertOne(sessionData);
     }

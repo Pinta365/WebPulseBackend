@@ -10,6 +10,7 @@ export interface DbVersionDocument {
 export interface ProjectOptions {
     storeUserAgent: boolean;
     storeLocation: boolean;
+    storeUTM: boolean;
     pageLoads: {
         enabled: boolean;
     };
@@ -41,6 +42,7 @@ export interface PayloadBaseTypes {
     timestamp: number;
     userAgent?: UserAgentData;
     location?: LocationData;
+    utm?: { [key: string]: string };
 }
 
 export interface PageLoadPayload extends PayloadBaseTypes {
@@ -115,6 +117,7 @@ export interface SessionObject {
     clicks: number;
     scrolls: number;
     pageLoads: PageLoadObject[];
+    utm?: { [key: string]: string };
 }
 
 export interface DeviceObject {
