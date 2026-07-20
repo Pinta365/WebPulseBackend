@@ -222,7 +222,7 @@ async function handleSessionLogic(payload: EventPayload) {
             loads: isLoadEvent ? 1 : 0,
             clicks: isClickEvent ? 1 : 0,
             scrolls: isScrollEvent ? 1 : 0,
-            pageLoads: (isInitEvent || isHideEvent ? [] : [newPageLoad as PageLoadObject]),
+            pageLoads: isInitEvent || isHideEvent ? [] : [newPageLoad as PageLoadObject],
         };
 
         if (payload.userAgent) {
