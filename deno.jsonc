@@ -1,7 +1,7 @@
 {
     "tasks": {
         "dev": "deno run -A --watch mod.ts",
-        "start": "deno run --allow-net --allow-read --allow-env mod.ts"
+        "start": "deno run --allow-net --allow-read --allow-env --allow-sys=osRelease mod.ts"
     },
     "fmt": {
         "lineWidth": 120,
