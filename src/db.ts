@@ -1,6 +1,7 @@
 import { Db, MongoClient, ObjectId } from "mongodb";
 import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
+import { dominates } from "./helpers.ts";
 import * as semver from "@std/semver";
 import { resolve } from "@std/path";
 
@@ -9,9 +10,11 @@ import type {
     DeviceObject,
     EventPayload,
     IncrementData,
+    LocationData,
     PageLoadObject,
     Project,
     SessionObject,
+    UserAgentData,
 } from "./types.ts";
 
 export { ObjectId } from "mongodb";
@@ -142,7 +145,17 @@ async function applyMigrations(currentVersion: semver.SemVer) {
     }
 }
 
-async function handleSessionLogic(payload: EventPayload) {
+/**
+ * The session-scoped values held on the session document after this event has
+ * been applied. insertEvent compares the payload against these to decide
+ * whether the event needs its own copy.
+ */
+interface SessionScopedData {
+    userAgent?: UserAgentData;
+    location?: LocationData;
+}
+
+async function handleSessionLogic(payload: EventPayload): Promise<SessionScopedData> {
     const db = await getDatabase();
     const sessionCollection = db.collection("sessions");
 
@@ -197,20 +210,31 @@ async function handleSessionLogic(payload: EventPayload) {
         } else {
             if (!isInitEvent && !isHideEvent) {
                 session.loads += 1;
-                // deno-lint-ignore no-explicit-any
                 await sessionCollection.updateOne({ _id: payload.sessionId }, {
+                    // deno-lint-ignore no-explicit-any
                     $push: { pageLoads: newPageLoad as any },
                 });
             }
         }
+        const backfill: SessionScopedData & { utm?: { [key: string]: string } } = {};
+        if (!session.userAgent && payload.userAgent) backfill.userAgent = payload.userAgent;
+        if (!session.location && payload.location) backfill.location = payload.location;
+        if (!session.utm && payload.utm) backfill.utm = payload.utm;
+
         await sessionCollection.updateOne({ _id: payload.sessionId }, {
             $set: {
                 lastEventAt: payload.timestamp,
                 clicks: session.clicks,
                 scrolls: session.scrolls,
                 loads: session.loads,
+                ...backfill,
             },
         });
+
+        return {
+            userAgent: session.userAgent ?? backfill.userAgent,
+            location: session.location ?? backfill.location,
+        };
     } else {
         const sessionData: SessionObject = {
             _id: payload.sessionId,
@@ -235,6 +259,8 @@ async function handleSessionLogic(payload: EventPayload) {
             sessionData.utm = payload.utm;
         }
         await sessionCollection.insertOne(sessionData);
+
+        return { userAgent: sessionData.userAgent, location: sessionData.location };
     }
 }
 
@@ -292,12 +318,20 @@ export async function insertEvent(payload: EventPayload) {
         payload.projectId = new ObjectId(payload.projectId);
 
         // Create or update the session and device collection a long with counters.
-        await handleSessionLogic(payload);
+        const onSession = await handleSessionLogic(payload);
         await handleDeviceLogic(payload);
 
-        // Insert the "raw" event into the events collection after some cleaning.
-        //delete payload.userAgent;
-        //delete payload.location;
+        // userAgent and location are session-scoped and already stored on the
+        // session, where every dashboard query reads them from. Drop the event's
+        // duplicate unless it holds something the session's copy does not — a bot
+        // reusing a sessionId, or a visitor whose country changed mid-session.
+        if (dominates(onSession.userAgent, payload.userAgent)) {
+            delete payload.userAgent;
+        }
+        if (dominates(onSession.location, payload.location)) {
+            delete payload.location;
+        }
+
         const collection = db.collection("events");
         await collection.insertOne(payload);
     } catch (error) {

@@ -36,6 +36,7 @@ export async function getCountryFromIP(req: Request): Promise<LocationData | nul
             }
 
             return null;
+            // deno-lint-ignore no-explicit-any
         } catch (error: any) {
             if (error.name === "AbortError") {
                 console.error(`Request was aborted after ${abortSeconds} seconds`);
@@ -89,6 +90,50 @@ export function getCountryFromIP(req: Request): LocationData | null {
     }
 }
 */
+export function isPlainObject(v: unknown): v is Record<string, unknown> {
+    return typeof v === "object" && v !== null && Object.getPrototypeOf(v) === Object.prototype;
+}
+
+/**
+ * True when `sup` holds everything `sub` does: every leaf present on `sub`
+ * exists on `sup` with an equal value. `sup` may hold strictly more.
+ *
+ * Used to decide whether an event's copy of a session-scoped field (userAgent,
+ * location) is redundant. If the session's copy dominates the event's, dropping
+ * the event's copy destroys no information. Anything that genuinely disagrees —
+ * a bot reusing a sessionId, a visitor roaming between countries mid-session —
+ * fails the check and is kept.
+ *
+ * null and undefined are treated alike, since the driver serialises undefined
+ * as null: a missing value on `sub` is nothing to preserve, and a missing value
+ * on `sup` cannot cover a present one on `sub`.
+ */
+export function dominates(sup: unknown, sub: unknown): boolean {
+    if (sub === undefined || sub === null) return true;
+    if (sup === undefined || sup === null) return false;
+
+    if (isPlainObject(sub)) {
+        if (!isPlainObject(sup)) return false;
+        for (const [k, v] of Object.entries(sub)) {
+            if (!dominates(sup[k], v)) return false;
+        }
+        return true;
+    }
+
+    if (Array.isArray(sub)) {
+        if (!Array.isArray(sup) || sup.length !== sub.length) return false;
+        return sub.every((v, i) => dominates(sup[i], v));
+    }
+
+    if (sub instanceof Date) return sup instanceof Date && sup.getTime() === sub.getTime();
+
+    // BSON values such as ObjectId expose their own equality.
+    const eq = (sub as { equals?: unknown }).equals;
+    if (typeof eq === "function") return (eq as (o: unknown) => boolean).call(sub, sup);
+
+    return sup === sub;
+}
+
 export function genULID(seedTime: number = Date.now()): string {
     return ulid(seedTime);
 }
