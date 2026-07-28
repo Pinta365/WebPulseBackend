@@ -54,7 +54,7 @@ export interface PageLoadPayload extends PayloadBaseTypes {
 
 export interface PageInitPayload extends PayloadBaseTypes {
     type: "pageInit";
-    referrer: string;
+    referrer?: string;
 }
 
 export interface PageHidePayload extends PayloadBaseTypes {
@@ -65,6 +65,7 @@ export interface PageHidePayload extends PayloadBaseTypes {
 
 export interface PageClickPayload extends PayloadBaseTypes {
     type: "pageClick";
+    url: string;
     targetTag?: string;
     targetId?: string;
     targetHref?: string;
@@ -75,7 +76,8 @@ export interface PageClickPayload extends PayloadBaseTypes {
 
 export interface PageScrollPayload extends PayloadBaseTypes {
     type: "pageScroll";
-    depth?: string;
+    url: string;
+    depth: number;
 }
 
 export interface UserAgentData {
