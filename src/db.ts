@@ -1,7 +1,7 @@
 import { Db, MongoClient, ObjectId } from "mongodb";
 import { logError } from "./debug_logger.ts";
 import { config } from "./config.ts";
-import { dominates } from "./helpers.ts";
+import { dominates, getCountryFromIP } from "./helpers.ts";
 import * as semver from "@std/semver";
 import { resolve } from "@std/path";
 
@@ -30,7 +30,7 @@ let mongoDatabase: Db | null = null; //
 export async function getDatabase(): Promise<Db> {
     if (!mongoDatabase) {
         await mongoClient.connect();
-        mongoDatabase = mongoClient.db("WebPulse");
+        mongoDatabase = mongoClient.db(config.MongoDb);
         console.log("Connected to MongoDB");
     }
 
@@ -52,7 +52,7 @@ async function getDatabaseVersion(): Promise<string> {
     try {
         if (!mongoDatabase) {
             await mongoClient.connect();
-            mongoDatabase = mongoClient.db("WebPulse");
+            mongoDatabase = mongoClient.db(config.MongoDb);
             console.log("Connected to MongoDB");
         }
         const collection = mongoDatabase.collection("server_info");
@@ -74,7 +74,7 @@ export async function setDatabaseVersion(newVersion: string): Promise<boolean> {
     try {
         if (!mongoDatabase) {
             await mongoClient.connect();
-            mongoDatabase = mongoClient.db("WebPulse");
+            mongoDatabase = mongoClient.db(config.MongoDb);
             console.log("Connected to MongoDB");
         }
 
@@ -155,7 +155,7 @@ interface SessionScopedData {
     location?: LocationData;
 }
 
-async function handleSessionLogic(payload: EventPayload): Promise<SessionScopedData> {
+async function handleSessionLogic(payload: EventPayload, clientIp?: string): Promise<SessionScopedData> {
     const db = await getDatabase();
     const sessionCollection = db.collection("sessions");
 
@@ -236,6 +236,9 @@ async function handleSessionLogic(payload: EventPayload): Promise<SessionScopedD
             location: session.location ?? backfill.location,
         };
     } else {
+        // Resolve the country here and only here. Location is session-scoped.
+        const location = payload.location ?? (await getCountryFromIP(clientIp)) ?? undefined;
+
         const sessionData: SessionObject = {
             _id: payload.sessionId,
             projectId: payload.projectId,
@@ -252,8 +255,8 @@ async function handleSessionLogic(payload: EventPayload): Promise<SessionScopedD
         if (payload.userAgent) {
             sessionData.userAgent = payload.userAgent;
         }
-        if (payload.location) {
-            sessionData.location = payload.location;
+        if (location) {
+            sessionData.location = location;
         }
         if (payload.utm) {
             sessionData.utm = payload.utm;
@@ -308,7 +311,7 @@ async function handleDeviceLogic(payload: EventPayload) {
     }
 }
 
-export async function insertEvent(payload: EventPayload) {
+export async function insertEvent(payload: EventPayload, clientIp?: string) {
     try {
         const db = await getDatabase();
 
@@ -318,7 +321,7 @@ export async function insertEvent(payload: EventPayload) {
         payload.projectId = new ObjectId(payload.projectId);
 
         // Create or update the session and device collection a long with counters.
-        const onSession = await handleSessionLogic(payload);
+        const onSession = await handleSessionLogic(payload, clientIp);
         await handleDeviceLogic(payload);
 
         // userAgent and location are session-scoped and already stored on the

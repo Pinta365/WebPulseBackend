@@ -8,7 +8,7 @@
  */
 import { UserAgent } from "@std/http";
 import { BSON } from "mongodb";
-import { dominates } from "./helpers.ts";
+import { dominates, getIpFromRequest, normalizeIp } from "./helpers.ts";
 
 function assert(cond: boolean, msg: string) {
     if (!cond) throw new Error(msg);
@@ -89,4 +89,46 @@ Deno.test("arrays must match element-wise", () => {
     assert(dominates([1, 2, 3], [1, 2, 3]), "identical arrays");
     assert(!dominates([1, 2], [1, 2, 3]), "differing lengths are not dominated");
     assert(!dominates([1, 2, 3], [1, 9, 3]), "differing elements are not dominated");
+});
+
+// ---------------------------------------------------------------------------
+// Client IP resolution
+// ---------------------------------------------------------------------------
+const req = (headers: Record<string, string> = {}) => new Request("https://example.com/track", { headers });
+
+Deno.test("normalizeIp strips the IPv4-mapped IPv6 prefix", () => {
+    // Exactly what a live Deno Deploy connection reports.
+    assert(normalizeIp("::ffff:83.252.193.37") === "83.252.193.37", "mapped form should be unwrapped");
+    assert(normalizeIp("  ::ffff:1.2.3.4  ") === "1.2.3.4", "and trimmed");
+    assert(normalizeIp("83.252.193.37") === "83.252.193.37", "plain IPv4 is untouched");
+    assert(normalizeIp("2001:db8::1") === "2001:db8::1", "real IPv6 is untouched");
+});
+
+Deno.test("getIpFromRequest falls back to the connection address", () => {
+    // The Deno Deploy case: no proxy headers at all, address from the socket.
+    assert(
+        getIpFromRequest(req(), "::ffff:83.252.193.37") === "83.252.193.37",
+        "must use the connection address when no headers are present",
+    );
+    // The regression itself: headers alone yield nothing.
+    assert(getIpFromRequest(req()) === undefined, "no headers and no conn address means no IP");
+});
+
+Deno.test("getIpFromRequest still prefers proxy headers when present", () => {
+    assert(
+        getIpFromRequest(req({ "x-forwarded-for": "9.9.9.9" }), "1.1.1.1") === "9.9.9.9",
+        "a real reverse proxy must win over the socket address",
+    );
+    assert(
+        getIpFromRequest(req({ "x-forwarded-for": "9.9.9.9, 10.0.0.1, 10.0.0.2" })) === "9.9.9.9",
+        "the originating client is the leftmost entry",
+    );
+    assert(
+        getIpFromRequest(req({ "x-real-ip": "8.8.4.4" })) === "8.8.4.4",
+        "x-real-ip is honoured when x-forwarded-for is absent",
+    );
+    assert(
+        getIpFromRequest(req({ "x-forwarded-for": "  ::ffff:9.9.9.9  " })) === "9.9.9.9",
+        "header values are normalised too",
+    );
 });

@@ -5,6 +5,7 @@ const trackerURL = Deno.env.get("TRACKER_URL");
 const serveHttpsString = Deno.env.get("SERVE_HTTPS");
 const runMigrationsString = Deno.env.get("RUN_MIGRATIONS");
 const MongoUri = Deno.env.get("MONGO_URI");
+const MongoDb = Deno.env.get("MONGO_DB");
 
 // Export the config along with some default values.
 export const config = {
@@ -15,4 +16,7 @@ export const config = {
     serveHttps: serveHttpsString?.toLowerCase() === "true" ? true : false,
     runMigrations: runMigrationsString?.toLowerCase() === "true" ? true : false,
     MongoUri: MongoUri,
+    // Overridable so tests can target a throwaway database instead of the real
+    // one. Defaults to the production name, so nothing changes unless it is set.
+    MongoDb: MongoDb || "WebPulse",
 };

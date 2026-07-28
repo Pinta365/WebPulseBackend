@@ -3,15 +3,25 @@ import { UserAgent } from "@std/http";
 //import { IP2Location } from "../deps.ts";
 import { LocationData } from "./types.ts";
 
-// Helper to extract IP from standard Fetch API Request headers
-export function getIpFromRequest(req: Request): string | undefined {
-    return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        req.headers.get("x-real-ip") ||
-        undefined;
+/** Deno reports IPv4 peers as IPv4-mapped IPv6 ("::ffff:1.2.3.4"). */
+export function normalizeIp(ip: string): string {
+    const trimmed = ip.trim();
+    return trimmed.startsWith("::ffff:") ? trimmed.slice("::ffff:".length) : trimmed;
 }
 
-export async function getCountryFromIP(req: Request): Promise<LocationData | null> {
-    const ip = getIpFromRequest(req);
+/**
+ * Resolves the client IP for a request.
+ */
+export function getIpFromRequest(req: Request, connAddress?: string): string | undefined {
+    const fromHeaders = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("x-real-ip") ||
+        undefined;
+
+    const ip = fromHeaders ?? connAddress;
+    return ip ? normalizeIp(ip) : undefined;
+}
+
+export async function getCountryFromIP(ip: string | undefined): Promise<LocationData | null> {
     const abortSeconds = 5;
 
     if (ip) {
