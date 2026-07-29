@@ -8,7 +8,7 @@
  */
 import { UserAgent } from "@std/http";
 import { BSON } from "mongodb";
-import { dominates, getIpFromRequest, normalizeIp } from "./helpers.ts";
+import { dominates, getCountryFromIP, getIpFromRequest, normalizeIp } from "./helpers.ts";
 
 function assert(cond: boolean, msg: string) {
     if (!cond) throw new Error(msg);
@@ -112,6 +112,51 @@ Deno.test("getIpFromRequest falls back to the connection address", () => {
     );
     // The regression itself: headers alone yield nothing.
     assert(getIpFromRequest(req()) === undefined, "no headers and no conn address means no IP");
+});
+
+// ---------------------------------------------------------------------------
+// Country lookup, served locally from bin/country-db.bin (DB-IP Lite).
+// ---------------------------------------------------------------------------
+Deno.test("resolves real addresses to the right country", async () => {
+    const cases: [string, string][] = [
+        ["83.252.193.37", "SE"],
+        ["193.183.0.1", "SE"],
+        ["212.85.64.1", "SE"],
+        ["88.198.0.1", "DE"],
+        ["8.8.8.8", "US"],
+        ["2a01:4f8::1", "DE"], // IPv6 must work too, not just IPv4
+    ];
+    for (const [ip, expected] of cases) {
+        const got = await getCountryFromIP(ip);
+        assert(got?.countryShort === expected, `${ip}: expected ${expected}, got ${got?.countryShort}`);
+    }
+});
+
+Deno.test("derives a display name from the country code", async () => {
+    // countryShort is the stable key across data sources; countryLong is derived
+    // via Intl so it stays consistent rather than varying by provider.
+    assert((await getCountryFromIP("193.183.0.1"))?.countryLong === "Sweden", "SE should name as Sweden");
+    assert((await getCountryFromIP("88.198.0.1"))?.countryLong === "Germany", "DE should name as Germany");
+});
+
+Deno.test("returns null rather than guessing", async () => {
+    // Private, loopback and reserved ranges have no country. Returning nothing
+    // is correct; inventing one would put fictional rows in the dashboard.
+    for (const ip of ["127.0.0.1", "::1", "10.0.0.1", "192.168.1.1", "203.0.113.1"]) {
+        assert((await getCountryFromIP(ip)) === null, `${ip} must not resolve to a country`);
+    }
+    for (const bad of ["", "not-an-ip", "999.1.1.1", "1.2.3", undefined]) {
+        assert((await getCountryFromIP(bad)) === null, `${JSON.stringify(bad)} must not resolve`);
+    }
+});
+
+Deno.test("lookups are fast enough to sit on the request path", async () => {
+    await getCountryFromIP("8.8.8.8"); // warm the lazy load
+    const t0 = performance.now();
+    for (let i = 0; i < 20000; i++) await getCountryFromIP(`8.${i % 256}.${(i * 7) % 256}.1`);
+    const us = (performance.now() - t0) / 20000 * 1000;
+    assert(us < 50, `expected well under 50us per lookup, got ${us.toFixed(2)}us`);
+    console.log(`    ${us.toFixed(2)}us per lookup`);
 });
 
 Deno.test("getIpFromRequest still prefers proxy headers when present", () => {

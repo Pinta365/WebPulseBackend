@@ -1,7 +1,10 @@
 {
     "tasks": {
         "dev": "deno run -A --watch mod.ts",
-        "start": "deno run --allow-net --allow-read --allow-env --allow-sys=osRelease mod.ts"
+        "start": "deno run --allow-net --allow-read --allow-env --allow-sys=osRelease mod.ts",
+        "test": "deno test --allow-all src/",
+        // Rebuilds bin/country-db.bin from DB-IP Lite. Run monthly.
+        "build:country-db": "deno run --allow-net --allow-read --allow-write=bin,tools tools/build_country_db.ts"
     },
     "fmt": {
         "lineWidth": 120,
