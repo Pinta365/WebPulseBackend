@@ -1,0 +1,91 @@
+name: Update country database
+
+# DB-IP publishes IP2Location-style country data monthly. This rebuilds
+# bin/country-db.bin from the latest release and opens a PR, but only when the
+# data has actually changed.
+#
+# The build is deterministic: the header carries a hash of the source CSVs
+# rather than a build timestamp, so an unchanged upstream release produces a
+# byte-identical file and `git diff` stays quiet. That is what makes "only when
+# the files actually changed" possible without tracking the ~29 MB of raw CSVs.
+
+on:
+    schedule:
+        # 03:00 UTC on the 3rd, a couple of days after DB-IP's monthly release.
+        - cron: "0 3 3 * *"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    rebuild:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+
+            - name: Rebuild bin/country-db.bin
+              id: build
+              run: |
+                  deno task build:country-db | tee "$RUNNER_TEMP/build.log"
+                  {
+                    echo 'summary<<SUMMARY_EOF'
+                    cat "$RUNNER_TEMP/build.log"
+                    echo SUMMARY_EOF
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Has the data changed?
+              id: changed
+              run: |
+                  # porcelain rather than `git diff`, which reports nothing for an
+                  # untracked file — that would silently look like "no change" if
+                  # the database were ever missing from the commit.
+                  if [ -z "$(git status --porcelain -- bin/country-db.bin)" ]; then
+                    echo "changed=false" >> "$GITHUB_OUTPUT"
+                    echo "No change: DB-IP has not published new data since the last build."
+                  else
+                    echo "changed=true" >> "$GITHUB_OUTPUT"
+                    git status --short -- bin/country-db.bin
+                  fi
+
+            # Runs against the newly built database, so a bad upstream release is
+            # caught here rather than in a merged PR. The country tests assert
+            # that specific addresses still resolve to the expected countries.
+            - name: Verify lookups against the new data
+              if: steps.changed.outputs.changed == 'true'
+              run: deno task test
+
+            - name: Open pull request
+              if: steps.changed.outputs.changed == 'true'
+              uses: peter-evans/create-pull-request@v7
+              with:
+                  add-paths: bin/country-db.bin
+                  branch: chore/country-db-update
+                  # Reuse one branch so repeated runs update the open PR rather
+                  # than accumulating one per month.
+                  delete-branch: true
+                  commit-message: "chore: update country database from DB-IP Lite"
+                  title: "chore: update country database from DB-IP Lite"
+                  body: |
+                      Automated monthly rebuild of `bin/country-db.bin` from the
+                      latest [DB-IP Lite](https://db-ip.com/db/lite.php) release.
+
+                      Opened because the packed database differs from the committed
+                      one — the build is deterministic, so this means DB-IP actually
+                      published new data.
+
+                      ```
+                      ${{ steps.build.outputs.summary }}
+                      ```
+
+                      `deno task test` passed against the new data, so the country
+                      lookups still resolve the addresses covered by the test suite.
+
+                      Source data is CC BY 4.0 and requires attribution: a link back
+                      to DB-IP.com wherever country results are displayed.
+                  labels: dependencies
