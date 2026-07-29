@@ -4,9 +4,11 @@
 import type { Project } from "./types.ts";
 import { config } from "./config.ts";
 
+/**
+ * Builds the tracker script for a project.
+ */
 export function generateScript(
     project: Project,
-    pageLoadId: string,
 ): string | false {
     if (!project) {
         return false;
@@ -38,7 +40,7 @@ export function generateScript(
     }
 
     const startBlock = `
-    /* genscript v2 */
+    /* genscript v3 */
         function initTracking(projectId, reportBackURL) {
 ${utmBlock}       
 
@@ -77,7 +79,8 @@ ${utmBlock}
 
         const deviceId = localStorage.getItem("uniqueDeviceId") || genId();
         localStorage.setItem("uniqueDeviceId", deviceId);
-        
+        const pageLoadId = genId();
+
         let sessionObj = checkAndRenewSession(JSON.parse(sessionStorage.getItem("sessionObj")));
     `;
     const endBlock = "} initTracking('" + projectId + "', '" +
@@ -92,7 +95,7 @@ ${utmBlock}
                     projectId,
                     deviceId,
                     sessionId: sessionObj.id,
-                    pageLoadId: "${pageLoadId}",
+                    pageLoadId,
                     title: document.title,
                     url: window.location.href
                 });
@@ -110,7 +113,7 @@ ${utmBlock}
                 projectId,
                 deviceId,
                 sessionId: sessionObj.id,
-                pageLoadId: "${pageLoadId}",
+                pageLoadId,
                 referrer: document.referrer,
                 title: document.title,
                 url: window.location.href,
@@ -122,7 +125,7 @@ ${utmBlock}
                 projectId,
                 deviceId,
                 sessionId: sessionObj.id,
-                pageLoadId: "${pageLoadId}",
+                pageLoadId,
                 referrer: document.referrer,
                 title: document.title,
                 url: window.location.href
@@ -136,7 +139,7 @@ ${utmBlock}
                 projectId,
                 deviceId,
                 sessionId: sessionObj.id,
-                pageLoadId: "${pageLoadId}",
+                pageLoadId,
                 referrer: document.referrer,
                 ...(Object.keys(utmParams).length > 0 ? { utm: utmParams } : {})
             });`;
@@ -146,7 +149,7 @@ ${utmBlock}
                 projectId,
                 deviceId,
                 sessionId: sessionObj.id,
-                pageLoadId: "${pageLoadId}",
+                pageLoadId,
                 referrer: document.referrer
             });`;
         }
@@ -158,21 +161,23 @@ ${utmBlock}
 
         if (project?.options?.pageClicks.captureAllClicks === false) {
             optionalBlock += `
-                    const classicClickableTags = ["A", "BUTTON", "INPUT", "TEXTAREA", "SELECT"];
-                    let target = e.target;
-                
-                    // Traverse up the DOM tree to find a clickable element
-                    while (target) {
-                        if (classicClickableTags.includes(target.tagName.toUpperCase())) break;
-                        if (target.getAttribute("role") === "button") break;
-                        
-                        const computedStyle = window.getComputedStyle(target);
-                        if (computedStyle.cursor === "pointer") break;
-                
-                        target = target.parentElement;
+                    let target = e.target.closest
+                        ? e.target.closest("a, button, input, textarea, select, summary, label, [role=button]")
+                        : null;
+
+                    if (!target) {
+                        let el = e.target;
+                        while (el && el.nodeType === 1 && window.getComputedStyle(el).cursor === "pointer") {
+                            target = el;
+                            el = el.parentElement;
+                        }
                     }
-                
+
                     if (!target) return;  // Not a clickable element
+                `;
+        } else {
+            optionalBlock += `
+                    const target = e.target;
                 `;
         }
 
@@ -180,14 +185,14 @@ ${utmBlock}
             reportBack({
                 type: "pageClick",
                 projectId,
-                pageLoadId: "${pageLoadId}",
+                pageLoadId,
                 deviceId,
                 sessionId: sessionObj.id,
                 url: window.location.href,
-                targetTag: e.target.tagName,
-                targetId: e.target.id,
-                targetHref: e.target.href,
-                targetClass: e.target.classList.value,
+                targetTag: target.tagName,
+                targetId: target.id,
+                targetHref: target.href,
+                targetClass: target.classList.value,
                 x: e.clientX,
                 y: e.clientY
             });
@@ -222,7 +227,7 @@ ${utmBlock}
                         reportBack({
                             type: "pageScroll",
                             projectId,
-                            pageLoadId: "${pageLoadId}",
+                            pageLoadId,
                             deviceId,
                             sessionId: sessionObj.id,
                             url: window.location.href,
