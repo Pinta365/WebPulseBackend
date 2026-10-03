@@ -89,6 +89,17 @@ export interface UserAgentData {
     ua: string;
 }
 
+export type BotCategory = "search" | "ai" | "social" | "seo" | "monitoring" | "automation" | "unknown";
+
+/** Bot verdict for a session. `name` and `category` are only set when `isBot` is true. */
+export interface BotData {
+    isBot: boolean;
+    name?: string;
+    category?: BotCategory;
+    /** Which signals fired, e.g. "ua". Empty for humans. */
+    reasons: string[];
+}
+
 export interface LocationData {
     countryShort: string;
     countryLong: string;
@@ -115,6 +126,7 @@ export interface SessionObject {
     lastEventAt: number;
     userAgent?: UserAgentData;
     location?: LocationData;
+    bot?: BotData;
     loads: number;
     clicks: number;
     scrolls: number;

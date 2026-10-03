@@ -1,4 +1,5 @@
 import { getProjectConfiguration, insertEvent } from "../src/db.ts";
+import { classifyBot } from "../src/bot.ts";
 import { getOrigin, getUserAgent } from "../src/helpers.ts";
 import type { IncomingEventPayload, Project, UserAgentData } from "../src/types.ts";
 
@@ -22,8 +23,12 @@ export async function track(payload: IncomingEventPayload, req: Request, clientI
         // never inside it, so it is never persisted.
         const ipForLookup = project.options.storeLocation ? clientIp : undefined;
 
+        // Classified from the raw UA even when storeUserAgent is off: only the
+        // verdict is stored, on the session.
+        const bot = classifyBot(req.headers.get("user-agent") ?? "");
+
         // deno-lint-ignore no-explicit-any
-        await insertEvent(payload as any, ipForLookup);
+        await insertEvent(payload as any, ipForLookup, bot);
 
         return 200;
     } else {

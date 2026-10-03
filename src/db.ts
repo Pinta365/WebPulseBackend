@@ -6,6 +6,7 @@ import * as semver from "@std/semver";
 import { resolve } from "@std/path";
 
 import type {
+    BotData,
     DbVersionDocument,
     DeviceObject,
     EventPayload,
@@ -155,7 +156,11 @@ interface SessionScopedData {
     location?: LocationData;
 }
 
-async function handleSessionLogic(payload: EventPayload, clientIp?: string): Promise<SessionScopedData> {
+async function handleSessionLogic(
+    payload: EventPayload,
+    clientIp?: string,
+    bot?: BotData,
+): Promise<SessionScopedData> {
     const db = await getDatabase();
     const sessionCollection = db.collection("sessions");
 
@@ -216,10 +221,13 @@ async function handleSessionLogic(payload: EventPayload, clientIp?: string): Pro
                 });
             }
         }
-        const backfill: SessionScopedData & { utm?: { [key: string]: string } } = {};
+        const backfill: SessionScopedData & { utm?: { [key: string]: string }; bot?: BotData } = {};
         if (!session.userAgent && payload.userAgent) backfill.userAgent = payload.userAgent;
         if (!session.location && payload.location) backfill.location = payload.location;
         if (!session.utm && payload.utm) backfill.utm = payload.utm;
+        // Classify sessions that predate classification, and let a bot UA
+        // upgrade a human verdict. A bot verdict is never downgraded.
+        if (bot && (!session.bot || (!session.bot.isBot && bot.isBot))) backfill.bot = bot;
 
         await sessionCollection.updateOne({ _id: payload.sessionId }, {
             $set: {
@@ -260,6 +268,9 @@ async function handleSessionLogic(payload: EventPayload, clientIp?: string): Pro
         }
         if (payload.utm) {
             sessionData.utm = payload.utm;
+        }
+        if (bot) {
+            sessionData.bot = bot;
         }
         await sessionCollection.insertOne(sessionData);
 
@@ -311,7 +322,7 @@ async function handleDeviceLogic(payload: EventPayload) {
     }
 }
 
-export async function insertEvent(payload: EventPayload, clientIp?: string) {
+export async function insertEvent(payload: EventPayload, clientIp?: string, bot?: BotData) {
     try {
         const db = await getDatabase();
 
@@ -321,7 +332,7 @@ export async function insertEvent(payload: EventPayload, clientIp?: string) {
         payload.projectId = new ObjectId(payload.projectId);
 
         // Create or update the session and device collection a long with counters.
-        const onSession = await handleSessionLogic(payload, clientIp);
+        const onSession = await handleSessionLogic(payload, clientIp, bot);
         await handleDeviceLogic(payload);
 
         // userAgent and location are session-scoped and already stored on the
