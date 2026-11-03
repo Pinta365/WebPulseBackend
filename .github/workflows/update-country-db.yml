@@ -23,7 +23,7 @@ jobs:
     rebuild:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - uses: denoland/setup-deno@v2
               with:
@@ -62,7 +62,7 @@ jobs:
 
             - name: Open pull request
               if: steps.changed.outputs.changed == 'true'
-              uses: peter-evans/create-pull-request@v7
+              uses: peter-evans/create-pull-request@v8
               with:
                   add-paths: bin/country-db.bin
                   branch: chore/country-db-update
